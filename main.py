@@ -629,6 +629,36 @@ def set_geofence(device_id: str, body: dict = Body(...), admin: dict = Depends(g
               device_id=device_id, detail=f"{body.get('name')} r={body.get('radius_m')}m")
     return {"ok": True}
 
+@app.get("/admin/devices/{device_id}/files")
+def device_files(device_id: str, path: str = "/sdcard", admin: dict = Depends(get_admin)):
+    """Request the device to list a directory. Returns immediately; results arrive via upload."""
+    with db() as conn:
+        _issue_command(conn, device_id, "browse", path, admin["username"], reason="file_manager")
+    return {"ok": True, "requested": path}
+
+@app.post("/device/files/upload")
+def upload_files(device_id: str = Form(...), path: str = Form(...), content: UploadFile = File(...)):
+    """Receive a file listing from the device."""
+    raw = content.file.read()
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content) "
+            "VALUES(?,?,?,?,?,?) ON CONFLICT(device_id,log_date) DO UPDATE SET "
+            "checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path",
+            (device_id, f"files:{path}", "/files", hashlib.sha256(raw).hexdigest(), len(raw), raw.decode("utf-8", errors="replace"))
+        )
+    return {"ok": True, "size": len(raw)}
+
+@app.get("/admin/devices/{device_id}/files/content")
+def device_files_content(device_id: str, path: str = "/sdcard", admin: dict = Depends(get_admin)):
+    """Get the file listing for a device+path."""
+    with db() as conn:
+        row = conn.execute("SELECT content FROM log_files WHERE device_id=? AND log_date=?",
+                           (device_id, f"files:{path}")).fetchone()
+    if not row or not row["content"]:
+        raise HTTPException(404, "no file listing for this path")
+    return PlainTextResponse(row["content"])
+
 
 @app.delete("/admin/geofence/{gfid}")
 def del_geofence(gfid: int, admin: dict = Depends(get_admin)):

