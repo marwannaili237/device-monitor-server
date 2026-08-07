@@ -258,18 +258,7 @@ def pulse(body: PulseBody):
     now = datetime.utcnow().isoformat()
     with db() as conn:
         row = conn.execute("SELECT status FROM devices WHERE device_id=?", (body.device_id,)).fetchone()
-        # Determine work-hours state from admin settings
-        srow = conn.execute("SELECT key,value FROM settings WHERE key IN ('work_start','work_end','work_active','timezone')").fetchall()
-        st = {r["key"]: r["value"] for r in srow}
-        work_enforce = st.get("work_active", "1") == "1"
-        locally = now_local(datetime.utcnow(), st.get("timezone", "Africa/Algiers"))
-        if work_enforce:
-            start_s, end_s = st.get("work_start", "07:00"), st.get("work_end", "19:00")
-            in_hours = int(locally.strftime("%H%M")) >= int(start_s.replace(":", "")) and \
-                       int(locally.strftime("%H%M")) <= int(end_s.replace(":", ""))
-        else:
-            in_hours = True
-        if row and body.lat is not None and body.lng is not None and in_hours:
+        if row and body.lat is not None and body.lng is not None:
             conn.execute("UPDATE devices SET last_seen_at=?, lat=?, lng=?, speed=?, location_at=?, battery_pct=COALESCE(?,battery_pct), charging=COALESCE(?,charging) WHERE device_id=?",
                          (now, body.lat, body.lng, body.speed, now, body.battery_pct, body.charging, body.device_id))
             conn.execute("INSERT INTO location_history(device_id,lat,lng,speed,ts) VALUES(?,?,?,?,?)",
@@ -277,7 +266,7 @@ def pulse(body: PulseBody):
         elif row:
             conn.execute("UPDATE devices SET last_seen_at=?, battery_pct=COALESCE(?,battery_pct), charging=COALESCE(?,charging) WHERE device_id=?",
                          (now, body.battery_pct, body.charging, body.device_id))
-        # geofence breach check (only when in-work-hours and have a location)
+        # geofence breach check (any location)
         if row and row["status"] == "active" and body.lat is not None and body.lng is not None:
             gf = conn.execute("SELECT name,lat,lng,radius_m FROM geofences WHERE device_id=? AND active=1", (body.device_id,)).fetchall()
             for g in gf:
@@ -294,7 +283,7 @@ def pulse(body: PulseBody):
         cmds = [{"id": c["id"], "cmd": c["cmd"], "param": c["param"]} for c in pending]
         policy = conn.execute("SELECT policy FROM device_policy WHERE device_id=?", (body.device_id,)).fetchone()
     return {"status": row["status"], "action": "none" if row["status"] == "active" else "revoked",
-            "in_work_hours": in_hours, "commands": cmds, "policy": json.loads(policy["policy"]) if policy else None}
+            "commands": cmds, "policy": json.loads(policy["policy"]) if policy else None}
 
 
 def _sha(s: str) -> str:
