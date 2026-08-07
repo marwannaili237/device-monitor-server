@@ -61,7 +61,7 @@ button.ghost.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font
       <button class="ghost" onclick="show('dashPanel'); loadMetrics()">Dashboard</button>
       <button class="ghost" onclick="show('mapPanel'); loadDevices(); renderMap();">Map</button>
       <button class="ghost" onclick="show('settingsPanel'); loadSettings()">Settings</button>
-      <button class="ghost" onclick="loadAudit()">Audit log</button>
+      <button class="ghost" onclick="loadAudit()">Audit (last actions)</button>
       <span class="dim" id="roleTag"></span>
       <button class="ghost danger" onclick="logout()" style="margin-left:auto">Sign out</button>
     </div>
@@ -71,7 +71,7 @@ button.ghost.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font
     <strong>Overview</strong> <span class="dim" style="float:right" id="dashTick"></span>
     <div class="kpis" id="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px"></div>
     <div class="row" style="margin-top:14px">
-      <div class="col"><strong style="font-size:13px">Policy violations</strong><div id="dashViol" class="dim" style="font-size:13px;margin-top:6px"></div></div>
+      <div class="col"><strong style="font-size:13px">Policy & geofence violations</strong><div id="dashViol" class="dim" style="font-size:13px;margin-top:6px"></div></div>
       <div class="col"><strong style="font-size:13px">Admin actions</strong><div id="dashActions" class="dim" style="font-size:13px;margin-top:6px"></div></div>
       <div class="col"><strong style="font-size:13px">Recent audit</strong><div id="dashAudit" class="dim" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace"></div></div>
     </div>
@@ -104,7 +104,7 @@ button.ghost.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font
     <div class="row" style="margin-top:14px" id="dev0actions"></div>
     <!-- tabs -->
     <div class="row" style="margin-top:16px;gap:6px" id="dev0tabs"></div>
-    <div id="dev0body" style="margin-top:12px"></div>
+    <div id="dev0body" style="margin-top:12px;background:#16151a;border:1px solid #333;border-radius:10px;padding:18px 16px;"></div>
   </div>
 
   <div class="panel hidden" id="mapPanel">
@@ -114,7 +114,7 @@ button.ghost.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font
   </div>
 
   <div class="panel hidden" id="settingsPanel">
-    <strong>Work-hours & location settings</strong>
+    <strong>Work hours & location</strong>
     <p class="dim" style="margin-top:6px">Location is recorded for drivers only during the business hours set below.</p>
     <div class="row" style="margin-top:10px">
       <div><label>Work start (HH:MM)</label><input id="ws" placeholder="07:00"></div>
@@ -136,7 +136,7 @@ button.ghost.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font
   </div>
 
   <div class="panel hidden" id="auditPanel">
-    <strong>Audit log</strong>
+    <strong>Audit (last actions)</strong>
     <div id="auditBody" style="font-size:13px;margin-top:10px;font-family:ui-monospace,monospace"></div>
   </div>
 </div>
@@ -304,7 +304,7 @@ async function loadDetail(id){
       '<button class="ghost" onclick="runCmd(\''+esc(id)+'\',\'sync\')">🔄 Sync</button> '+
       '<span style="margin-left:6px"><input id="customCmd" placeholder="custom command" style="min-width:150px"> <button class="ghost" onclick="runCustom(\''+esc(id)+'\')">Send</button></span>';
     // tabs
-    el("dev0tabs").innerHTML = ['Overview','Apps','Keystrokes / activity','Location','Policy & geofence','Audit',].map((t,i)=>
+    el("dev0tabs").innerHTML = ['Overview','Apps','Keystrokes / activity','Location','Policy & geofence & geofence','Audit',].map((t,i)=>
       '<button class="ghost '+(i===0?'on':'')+'" data-t="'+i+'" onclick="consoleTab(\''+esc(id)+'\',this)">'+t+'</button>').join('');
     consoleTab(id, document.querySelector('#dev0tabs button'));
   }catch(e){ el("dev0status").innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
@@ -328,7 +328,7 @@ function consoleTab(id, btn){
   else if(t==="1"){ b.innerHTML = renderApps(d); }
   else if(t==="2"){ loadDeviceLogs(id); }
   else if(t==="3"){ loadDeviceLocation(id); }
-  else if(t==="4"){ loadDevicePolicy(id); }
+  else if(t==="4"){ loadDevicePolicy & geofence(id); }
   else { b.innerHTML = renderDeviceAudit(d); }
 }
 function renderOverview(d){
@@ -339,9 +339,9 @@ function renderOverview(d){
   h += '<div><strong style="font-size:13px">Compliance</strong><div class="dim" style="margin-top:6px;font-size:13px">'+
     'Rooted: '+(d.rooted?"<b style='color:var(--danger)'>YES</b>":"no")+'<br>Unknown sources: '+(d.unknown_sources?"<b style='color:var(--danger)'>YES</b>":"no")+'<br>Bootloader: '+(d.unlocked_boot?"<b style='color:var(--danger)'>UNLOCKED</b>":"locked")+
     '</div></div>';
-  h += '<div><strong style="font-size:13px">Policy</strong><div class="dim" style="margin-top:6px;font-size:13px">'+ (d.policy? Object.entries(d.policy).map(([k,v])=>k+": "+v).join("<br>") : "— default") +'</div></div>';
+  h += '<div><strong style="font-size:13px">Policy & geofence</strong><div class="dim" style="margin-top:6px;font-size:13px">'+ (d.policy? Object.entries(d.policy).map(([k,v])=>k+": "+v).join("<br>") : "— default") +'</div></div>';
   h += '</div>';
-  h += '<div style="margin-top:14px"><strong style="font-size:13px">Last activity (keystroke/focus log)</strong><div class="dim" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace;max-height:200px;overflow:auto">'+ (d.lastLog||"Switch to the Logs tab to view captured activity.") +'</div></div>';
+  h += '<div style="margin-top:14px"><strong style="font-size:13px">Keystrokes / activity</strong><div class="dim" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace;max-height:200px;overflow:auto">'+ (d.lastLog||"Switch to the Logs tab to view captured activity.") +'</div></div>';
   return h;
 }
 function renderApps(d){
@@ -418,25 +418,25 @@ function drawDevMap(locs){
   locs.slice(0,50).forEach(l=>L.circleMarker([l.lat,l.lng],{radius:3,color:"#58a6ff"}).addTo(devmapEl));
   devmapEl.invalidateSize();
 }
-async function loadDevicePolicy(id){
+async function loadDevicePolicy & geofence(id){
   const b = el("dev0body");
   const d = detailCache||{};
   const gfs = d.geofences||[];
-  b.innerHTML = '<div class="row" style="gap:14px"><div><strong style="font-size:13px">Policy for this device</strong>'+
+  b.innerHTML = '<div class="row" style="gap:14px"><div><strong style="font-size:13px">Policy & geofence for this device</strong>'+
     '<div style="margin-top:8px;font-size:13px" class="dim">'+ (d.policy? Object.entries(d.policy).map(([k,v])=>k+" = "+v).join("<br>") : "— default policy") +'</div>'+
     '<div class="row" style="margin-top:10px"><input id="polMin" placeholder="min PIN" style="min-width:90px" value="'+(d.policy&&d.policy.minPinLength||"")+'"> '+
     '<input id="polLock" placeholder="lock s" style="min-width:90px" value="'+(d.policy&&d.policy.lockTimeoutS||"")+'"> '+
-    '<button onclick="savePolicy(\''+esc(id)+'\')">Apply policy</button></div></div>'+
+    '<button onclick="savePolicy & geofence(\''+esc(id)+'\')">Apply policy</button></div></div>'+
     '<div><strong style="font-size:13px">Geofence (HQ boundary)</strong>'+
     '<div style="margin-top:8px;font-size:13px" class="dim">'+(gfs.length? gfs.map(g=>g.name+" r="+g.radius_m+"m").join(" · ") : "none")+'</div>'+
     '<div class="row" style="margin-top:10px"><input id="gfLat" placeholder="lat" style="min-width:100px"> <input id="gfLng" placeholder="lng" style="min-width:100px"> <input id="gfR" placeholder="radius m" style="min-width:100px" value="500"> <button onclick="saveGeofence(\''+esc(id)+'\')">Set fence</button></div>'+
     '</div></div>';
 }
-async function savePolicy(id){
+async function savePolicy & geofence(id){
   const min = el("polMin").value.trim(), lock = el("polLock").value.trim();
   const pol = {};
   if(min) pol.minPinLength=parseInt(min); if(lock) pol.lockTimeoutS=parseInt(lock);
-  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/policy", {method:"POST", body: JSON.stringify({policy:pol})}); alert("Policy saved — enforced on next check-in."); loadDetail(id); }catch(e){ alert(e.message); }
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/policy", {method:"POST", body: JSON.stringify({policy:pol})}); alert("Policy & geofence saved — enforced on next check-in."); loadDetail(id); }catch(e){ alert(e.message); }
 }
 async function saveGeofence(id){
   const lat=parseFloat(el("gfLat").value), lng=parseFloat(el("gfLng").value), r=parseFloat(el("gfR").value||"500");
