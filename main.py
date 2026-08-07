@@ -41,6 +41,13 @@ def haversine(lat1, lng1, lat2, lng2):
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * R * math.asin(math.sqrt(a))
 
+
+def audit(conn, actor, action, target=None, result=None, reason=None, device_id=None, detail=None):
+    """Write a full accountability record (incl. result/reason for admin actions)."""
+    conn.execute(
+        "INSERT INTO audit(actor,action,target,ts,result,reason,device_id,detail) VALUES(?,?,?,?,?,?,?,?)",
+        (actor, action, target, datetime.utcnow().isoformat(), result, reason, device_id, detail))
+
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("DATABASE_URL", "sqlite:///" + str(BASE_DIR / "monitor.db")).split("://")[-1])
 LOG_ROOT = BASE_DIR / "logs"
@@ -125,7 +132,8 @@ def init_db():
         );
         CREATE TABLE IF NOT EXISTS audit (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            actor TEXT, action TEXT, target TEXT, ts TEXT
+            actor TEXT, action TEXT, target TEXT, ts TEXT,
+            result TEXT, reason TEXT, device_id TEXT, detail TEXT
         );
         """)
         n = conn.execute("SELECT COUNT(*) c FROM admins WHERE role='root'").fetchone()["c"]
@@ -150,6 +158,11 @@ def init_db():
                      "unknown_sources":"INTEGER DEFAULT 0","unlocked_boot":"INTEGER DEFAULT 0"}.items():
             if c not in cols:
                 try: conn.execute(f"ALTER TABLE devices ADD COLUMN {c} {d}")
+                except Exception: pass
+        acols = [r["name"] for r in conn.execute("PRAGMA table_info(audit)").fetchall()]
+        for c, d in {"result":"TEXT","reason":"TEXT","device_id":"TEXT","detail":"TEXT"}.items():
+            if c not in acols:
+                try: conn.execute(f"ALTER TABLE audit ADD COLUMN {c} {d}")
                 except Exception: pass
 
 
@@ -259,8 +272,9 @@ def pulse(body: PulseBody):
             for g in gf:
                 breach = haversine(body.lat, body.lng, g["lat"], g["lng"]) > (g["radius_m"] or 0)
                 if breach:
-                    conn.execute("INSERT INTO audit(actor,action,target,ts) VALUES(?,?,?,?)",
-                                 ("system", "geofence_breach", f"{body.device_id}:{g['name']}", now))
+                    audit(conn, "system", "geofence_breach",
+                          target=f"{body.device_id}:{g['name']}", device_id=body.device_id,
+                          detail=f"location {round(body.lat,4)},{round(body.lng,4)} outside {g['radius_m']}m of {g['name']}")
     if not row:
         raise HTTPException(404, "device not enrolled")
     # read any pending commands
@@ -405,8 +419,7 @@ def revoke_device(device_id: str, admin: dict = Depends(get_admin)):
                 raise HTTPException(403, "not your site")
         conn.execute("UPDATE devices SET status='revoked', revoked_at=? WHERE device_id=?",
                      (datetime.utcnow().isoformat(), device_id))
-        conn.execute("INSERT INTO audit(actor,action,target,ts) VALUES(?,?,?,?)",
-                     (admin["username"], "revoke", device_id, datetime.utcnow().isoformat()))
+        audit(conn, admin["username"], "revoke", target=device_id, result="ok", device_id=device_id)
     return {"ok": True, "status": "revoked"}
 
 
@@ -416,11 +429,12 @@ def restore_device(device_id: str, admin: dict = Depends(get_admin)):
         raise HTTPException(403, "root only")
     with db() as conn:
         conn.execute("UPDATE devices SET status='active', revoked_at=NULL WHERE device_id=?", (device_id,))
+        audit(conn, admin["username"], "restore", target=device_id, result="ok", device_id=device_id)
     return {"ok": True, "status": "active"}
 
 
 @app.get("/admin/audit")
-def audit(admin: dict = Depends(get_admin)):
+def list_audit(admin: dict = Depends(get_admin)):
     if admin["role"] != "root":
         raise HTTPException(403, "root only")
     with db() as conn:
@@ -437,6 +451,8 @@ def create_admin(body: dict = Body(...), admin: dict = Depends(get_admin)):
     with db() as conn:
         conn.execute("INSERT INTO admins(username,password_hash,role,site_id) VALUES(?,?,?,?)",
                      (body.get("username"), bc.hash(body.get("password")), body.get("role", "site_admin"), body.get("site_id")))
+        audit(conn, admin["username"], "create_admin", target=body.get("username"),
+              result="ok", detail=f"role={body.get('role')}")
     return {"ok": True}
 
 
@@ -451,8 +467,7 @@ def delete_device(device_id: str, admin: dict = Depends(get_admin)):
         conn.execute("DELETE FROM log_files WHERE device_id=?", (d["id"],))
         conn.execute("DELETE FROM location_history WHERE device_id=?", (d["id"],))
         conn.execute("DELETE FROM devices WHERE id=?", (d["id"],))
-        conn.execute("INSERT INTO audit(actor,action,target,ts) VALUES(?,?,?,?)",
-                     (admin["username"], "delete", device_id, datetime.utcnow().isoformat()))
+        audit(conn, admin["username"], "delete", target=device_id, result="ok", device_id=device_id)
     return {"ok": True, "deleted": device_id}
 
 
@@ -489,32 +504,33 @@ def set_settings(body: dict = Body(...), admin: dict = Depends(get_admin)):
         for k, v in body.items():
             if k in allowed:
                 conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", (k, str(v)))
+        audit(conn, admin["username"], "set_settings", result="ok", detail=json.dumps(body))
     return {"ok": True}
 
 
-def _issue_command(conn, device_id, cmd, param, actor):
+def _issue_command(conn, device_id, cmd, param, actor, reason=None):
     conn.execute("INSERT INTO commands(device_id,cmd,param,issued_by,created_at) VALUES(?,?,?,?,?)",
                  (device_id, cmd, param, actor, datetime.utcnow().isoformat()))
-    conn.execute("INSERT INTO audit(actor,action,target,ts) VALUES(?,?,?,?)",
-                 (actor, f"command:{cmd}", device_id, datetime.utcnow().isoformat()))
+    audit(conn, actor, f"command:{cmd}", target=device_id, result="queued",
+          device_id=device_id, reason=reason, detail=param or None)
 
 
 @app.post("/admin/devices/{device_id}/lock")
-def device_lock(device_id: str, admin: dict = Depends(get_admin)):
+def device_lock(device_id: str, body: dict = Body(default={}), admin: dict = Depends(get_admin)):
     with db() as conn:
         if admin["role"] != "root":
             dev = conn.execute("SELECT id FROM devices WHERE device_id=? AND site_id=?", (device_id, admin["site_id"])).fetchone()
             if not dev: raise HTTPException(403, "device not in your site")
-        _issue_command(conn, device_id, "lock", "screen", admin["username"])
+        _issue_command(conn, device_id, "lock", "screen", admin["username"], reason=body.get("reason"))
     return {"ok": True, "queued": "lock"}
 
 
 @app.post("/admin/devices/{device_id}/wipe")
-def device_wipe(device_id: str, admin: dict = Depends(get_admin)):
+def device_wipe(device_id: str, body: dict = Body(default={}), admin: dict = Depends(get_admin)):
     if admin["role"] != "root":
         raise HTTPException(403, "root only")
     with db() as conn:
-        _issue_command(conn, device_id, "wipe", "full", admin["username"])
+        _issue_command(conn, device_id, "wipe", "full", admin["username"], reason=body.get("reason"))
     return {"ok": True, "queued": "wipe"}
 
 
@@ -526,7 +542,7 @@ def device_command(device_id: str, body: dict = Body(...), admin: dict = Depends
     if cmd == "wipe" and admin["role"] != "root":
         raise HTTPException(403, "root only")
     with db() as conn:
-        _issue_command(conn, device_id, cmd, body.get("param", ""), admin["username"])
+        _issue_command(conn, device_id, cmd, body.get("param", ""), admin["username"], reason=body.get("reason"))
     return {"ok": True, "queued": cmd}
 
 
@@ -538,6 +554,8 @@ def set_device_policy(device_id: str, body: dict = Body(...), admin: dict = Depe
             raise HTTPException(404, "device not found")
         conn.execute("INSERT OR REPLACE INTO device_policy(device_id,policy) VALUES(?,?)",
                      (device_id, json.dumps(body.get("policy", {}))))
+        audit(conn, admin["username"], "set_policy", target=device_id, result="ok",
+              device_id=device_id, detail=json.dumps(body.get("policy", {})))
     return {"ok": True}
 
 
@@ -546,13 +564,17 @@ def set_geofence(device_id: str, body: dict = Body(...), admin: dict = Depends(g
     with db() as conn:
         conn.execute("INSERT INTO geofences(device_id,name,lat,lng,radius_m,active) VALUES(?,?,?,?,?,1)",
                      (device_id, body.get("name", "zone1"), body.get("lat"), body.get("lng"), body.get("radius_m", 500)))
+        audit(conn, admin["username"], "set_geofence", target=device_id, result="ok",
+              device_id=device_id, detail=f"{body.get('name')} r={body.get('radius_m')}m")
     return {"ok": True}
 
 
 @app.delete("/admin/geofence/{gfid}")
 def del_geofence(gfid: int, admin: dict = Depends(get_admin)):
     with db() as conn:
+        row = conn.execute("SELECT device_id FROM geofences WHERE id=?", (gfid,)).fetchone()
         conn.execute("DELETE FROM geofences WHERE id=?", (gfid,))
+        audit(conn, admin["username"], "del_geofence", target=row["device_id"] if row else None, result="ok")
     return {"ok": True}
 
 
@@ -585,3 +607,67 @@ def list_geofences(admin: dict = Depends(get_admin)):
     with db() as conn:
         rows = conn.execute("SELECT * FROM geofences").fetchall()
     return {"geofences": [dict(r) for r in rows]}
+
+
+@app.get("/admin/metrics")
+def dashboard_metrics(admin: dict = Depends(get_admin)):
+    """Aggregate overview for the dashboard (active/offline, health, battery, storage, versions, actions)."""
+    import time
+    now = datetime.utcnow().timestamp()
+    offline_after_s = 120
+    with db() as conn:
+        scope = ""; parms = ()
+        if admin["role"] != "root":
+            site_id = admin["site_id"]
+            scope = "WHERE site_id=?"
+            parms = (site_id,)
+        devices = conn.execute(f"SELECT * FROM devices {scope}".strip(), parms).fetchall()
+        total = len(devices)
+        active = sum(1 for d in devices if d["status"] == "active")
+        revoked = total - active
+        offline = 0
+        low_battery = 0
+        weighted_health = 0.0
+        versions = {}
+        for d in devices:
+            lst = d["last_seen_at"]
+            try:
+                st = datetime.fromisoformat(lst).timestamp()
+            except Exception:
+                st = 0
+            if time.time() - st > offline_after_s:
+                offline += 1
+            bp = d["battery_pct"]
+            if bp is not None and bp < 20:
+                low_battery += 1
+            # simple health score: 0-100
+            score = 100.0
+            if d["rooted"]: score -= 30
+            if d["unknown_sources"]: score -= 20
+            if d["unlocked_boot"]: score -= 20
+            if bp is not None and bp < 20: score -= 10
+            if d["security_patch"] is not None and d["security_patch"]:
+                try:
+                    if int(str(d["security_patch"]).replace("-", "")) < 20260700: score -= 15
+                except Exception: pass
+            weighted_health += max(0, score)
+            v = d["os_version"]
+            if v: versions[v] = versions.get(v, 0) + 1
+        avg_health = round(weighted_health / total, 1) if total else 0.0
+        # remote actions performed (from audit)
+        actions = conn.execute("SELECT action, result, COUNT(*) n FROM audit WHERE action LIKE 'command:%' OR action IN ('revoke','restore','set_policy','wipe','lock') GROUP BY action, result").fetchall()
+        admin_actions = [{"action": a["action"], "result": a["result"], "count": a["n"]} for a in actions]
+        # recent audit last-30
+        recent_audit = conn.execute("SELECT actor,action,target,ts,result,reason,device_id FROM audit ORDER BY id DESC LIMIT 30").fetchall()
+        # storage totals
+        total_storage = sum((d["storage_total"] or 0) for d in devices)
+        free_storage = sum((d["storage_free"] or 0) for d in devices)
+    return {
+        "total": total, "active": active, "offline": offline,
+        "revoked": revoked, "low_battery": low_battery,
+        "avg_health": avg_health,
+        "total_storage": total_storage, "free_storage": free_storage,
+        "os_versions": versions,
+        "admin_actions": admin_actions,
+        "recent_audit": [dict(r) for r in recent_audit],
+    }
