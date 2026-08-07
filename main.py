@@ -57,6 +57,9 @@ app = FastAPI(title="Device Monitor", version="1.0.0")
 
 
 def db():
+    if os.environ.get("DATABASE_URL"):
+        import pgdb
+        return pgdb.connect()
     import sqlite3
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -66,6 +69,15 @@ def db():
 def init_db():
     from passlib.context import CryptContext
     bc = CryptContext(schemes=["bcrypt"])
+    if os.environ.get("DATABASE_URL"):
+        # Postgres schema is created via /tmp/schema.sql (runner). Only seed here.
+        with db() as conn:
+            n = conn.execute("SELECT COUNT(*) AS c FROM admins WHERE role='root'").fetchone()["c"]
+            if n == 0:
+                pw = os.environ.get("ROOT_PASSWORD", "change-me-root")
+                conn.execute("INSERT INTO admins(username,password_hash,role) VALUES(%s,%s,%s)",
+                             ("root", bc.hash(pw), "root"))
+        return
     with db() as conn:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS sites (
@@ -136,7 +148,7 @@ def init_db():
             result TEXT, reason TEXT, device_id TEXT, detail TEXT
         );
         """)
-        n = conn.execute("SELECT COUNT(*) c FROM admins WHERE role='root'").fetchone()["c"]
+        n = conn.execute("SELECT COUNT(*) AS c FROM admins WHERE role='root'").fetchone()["c"]
         if n == 0:
             pw = os.environ.get("ROOT_PASSWORD", "change-me-root")
             conn.execute("INSERT INTO admins(username,password_hash,role) VALUES(?,?,?)",
@@ -697,7 +709,7 @@ def dashboard_metrics(admin: dict = Depends(get_admin)):
             if v: versions[v] = versions.get(v, 0) + 1
         avg_health = round(weighted_health / total, 1) if total else 0.0
         # remote actions performed (from audit)
-        actions = conn.execute("SELECT action, result, COUNT(*) n FROM audit WHERE action LIKE 'command:%' OR action IN ('revoke','restore','set_policy','wipe','lock') GROUP BY action, result").fetchall()
+        actions = conn.execute("SELECT action, result, COUNT(*) AS n FROM audit WHERE action LIKE 'command:%' OR action IN ('revoke','restore','set_policy','wipe','lock') GROUP BY action, result").fetchall()
         admin_actions = [{"action": a["action"], "result": a["result"], "count": a["n"]} for a in actions]
         # recent audit last-30
         recent_audit = conn.execute("SELECT actor,action,target,ts,result,reason,device_id FROM audit ORDER BY id DESC LIMIT 30").fetchall()
