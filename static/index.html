@@ -51,6 +51,8 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
   <div class="panel hidden" id="mainPanel">
     <div class="row">
       <button onclick="loadDevices()">Refresh devices</button>
+      <button class="ghost" onclick="show('mapPanel'); loadDevices(); renderMap();">Map</button>
+      <button class="ghost" onclick="show('settingsPanel'); loadSettings()">Settings</button>
       <button class="ghost" onclick="loadAudit()">Audit log</button>
       <span class="dim" id="roleTag"></span>
       <button class="ghost danger" onclick="logout()" style="margin-left:auto">Sign out</button>
@@ -66,6 +68,26 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
     <div class="err hidden" id="devErr"></div>
   </div>
 
+  <div class="panel hidden" id="mapPanel">
+    <strong>Live map</strong> <span class="dim">(locations recorded during work hours)</span>
+    <div id="map" style="height:420px;background:var(--bg);border:1px solid var(--line);border-radius:6px;margin-top:10px"></div>
+    <div class="dim" id="mapHint" style="margin-top:8px"></div>
+  </div>
+
+  <div class="panel hidden" id="settingsPanel">
+    <strong>Work-hours & location settings</strong>
+    <p class="dim" style="margin-top:6px">Location is recorded for drivers only during the business hours set below.</p>
+    <div class="row" style="margin-top:10px">
+      <div><label>Work start (HH:MM)</label><input id="ws" placeholder="07:00"></div>
+      <div><label>Work end (HH:MM)</label><input id="we" placeholder="19:00"></div>
+      <div><label>Timezone</label><input id="tz" placeholder="Africa/Algiers"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="wa"> Enforce work-hours window</label>
+      <button onclick="saveSettings()">Save settings</button>
+    </div>
+    <div class="err hidden" id="setErr"></div>
+  </div>
   <div class="panel hidden" id="logsPanel">
     <strong>Device logs</strong>
     <div class="row" style="margin-top:10px" id="logList"></div>
@@ -83,6 +105,7 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
 <script>
 let token = localStorage.getItem("dm_token") || "";
 let role = "";
+let devices = [];
 
 async function api(path, opts){
   opts = opts || {};
@@ -117,7 +140,7 @@ async function login(){
 function logout(){
   if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
   token = ""; role = ""; localStorage.removeItem("dm_token");
-  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel");
+  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel"); hide("mapPanel"); hide("settingsPanel");
   show("loginPanel"); el("who").textContent = "Company-owned device fleet";
 }
 
@@ -127,6 +150,7 @@ async function loadDevices(){
   hide("devErr");
   try{
     const d = await api("/admin/devices");
+    devices = d.devices || [];
     const tb = el("devBody"); tb.innerHTML = "";
     if(!d.devices || !d.devices.length){ tb.innerHTML = '<tr><td colspan="6" class="dim">No devices enrolled yet.</td></tr>'; return; }
     d.devices.forEach(dev => {
@@ -205,6 +229,54 @@ async function loadAudit(){
       ? d.audit.map(a => esc(a.ts || "").slice(0,19) + " · " + esc(a.actor) + " " + esc(a.action) + " " + esc(a.target)).join("<br>")
       : '<span class="dim">No audit entries.</span>';
   }catch(e){ ab.innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
+}
+
+let mapEl = null, mapMarkers = [];
+async function renderMap(){
+  const m = el("map"); if(!m) return;
+  if(typeof L === "undefined"){
+    el("mapHint").textContent = "Loading map tiles…";
+    await new Promise(res => {
+      const s = document.createElement("script");
+      s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      s.onload = () => { const l = document.createElement("link"); l.rel="stylesheet"; l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(l); res(); };
+      document.head.appendChild(s);
+    });
+  }
+  if(!mapEl){ mapEl = L.map(m).setView([36.75, 3.06], 6); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution:"© OpenStreetMap"}).addTo(mapEl); }
+  mapMarkers.forEach(mk => mk.remove()); mapMarkers = [];
+  const withLoc = devices.filter(d => d.lat != null && d.lng != null);
+  if(!withLoc.length){
+    el("mapHint").innerHTML = '<span class="dim">No driver locations recorded yet. In <b>Settings</b> ensure work hours are set — locations appear during that window.</span>';
+    return;
+  }
+  el("mapHint").textContent = withLoc.length + " device(s) with recorded location.";
+  withLoc.forEach(d => {
+    const pop = "<b>"+esc(d.device_id)+"</b><br>" + (d.speed!=null? "speed " + d.speed + " km/h" : "stationary") + "<br>last "+esc((d.location_at||"").slice(0,19)).replace("T"," ");
+    const mk = L.marker([d.lat, d.lng]).addTo(mapEl).bindPopup(pop);
+    mapMarkers.push(mk);
+  });
+  if(mapEl) mapEl.invalidateSize();
+}
+
+async function loadSettings(){
+  hide("setErr");
+  try{
+    const s = await api("/admin/settings");
+    el("ws").value = s.work_start || "07:00";
+    el("we").value = s.work_end || "19:00";
+    el("tz").value = s.timezone || "Africa/Algiers";
+    el("wa").checked = (s.work_active || "1") === "1";
+  }catch(e){ el("setErr").textContent = e.message; show("setErr"); }
+}
+async function saveSettings(){
+  hide("setErr");
+  const body = {work_start:el("ws").value.trim(), work_end:el("we").value.trim(), timezone:el("tz").value.trim(), work_active:el("wa").checked?"1":"0"};
+  if(!/^\d{2}:\d{2}$/.test(body.work_start) || !/^\d{2}:\d{2}$/.test(body.work_end)){
+    el("setErr").textContent = "Work hours must be HH:MM"; show("setErr"); return;
+  }
+  try{ await api("/admin/settings", {method:"POST", body: JSON.stringify(body)}); el("setErr").style.color = "var(--accent)"; el("setErr").textContent = "Saved. Location will be recorded only within these hours."; show("setErr"); }
+  catch(e){ el("setErr").style.color = ""; el("setErr").textContent = e.message; show("setErr"); }
 }
 </script>
 </body>
