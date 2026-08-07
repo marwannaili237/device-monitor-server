@@ -486,6 +486,48 @@ def device_locations(device_id: str, admin: dict = Depends(get_admin)):
     return {"locations": [dict(r) for r in rows]}
 
 
+@app.get("/admin/devices/{device_id}/detail")
+def device_detail(device_id: str, admin: dict = Depends(get_admin)):
+    """Full per-device console data: row + pushed apps + client-installed apps + geofences + pending commands + device-specific audit."""
+    with db() as conn:
+        if admin["role"] == "root":
+            dev = conn.execute("SELECT * FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        else:
+            dev = conn.execute("SELECT * FROM devices WHERE device_id=? AND site_id=?", (device_id, admin["site_id"])).fetchone()
+        if not dev:
+            raise HTTPException(404, "device not found")
+        dv = dict(dev)
+        # client-reported installed apps (from /device/inventory)
+        apps = conn.execute("SELECT package,label,updated_at FROM apps WHERE device_id=? ORDER BY label LIMIT 500",
+                            (device_id,)).fetchall()
+        # current compliance flags
+        issues = []
+        if dv.get("rooted"): issues.append("rooted")
+        if dv.get("unknown_sources"): issues.append("unknown-sources")
+        if dv.get("unlocked_boot"): issues.append("unlocked-bootloader")
+        try:
+            patch = int(str(dv.get("security_patch") or "").replace("-", "")) or 0
+            if 0 < patch < 20260700: issues.append("outdated-patch")
+        except Exception: pass
+        dv["compliance"] = issues
+        dv["apps"] = [dict(a) for a in apps]
+        # geofences for this device
+        geo = conn.execute("SELECT * FROM geofences WHERE device_id=? AND active=1", (device_id,)).fetchall()
+        dv["geofences"] = [dict(g) for g in geo]
+        # policy
+        pol = conn.execute("SELECT policy FROM device_policy WHERE device_id=?", (device_id,)).fetchone()
+        dv["policy"] = json.loads(pol["policy"]) if pol else None
+        # pending commands
+        pend = conn.execute("SELECT id,cmd,param,issued_by,created_at FROM commands WHERE device_id=? AND acked_at IS NULL ORDER BY id DESC",
+                            (device_id,)).fetchall()
+        dv["commands"] = [dict(p) for p in pend]
+        # device-specific audit
+        aud = conn.execute("SELECT actor,action,ts,result,reason FROM audit WHERE device_id=? OR target=? ORDER BY id DESC LIMIT 50",
+                           (device_id, device_id)).fetchall()
+        dv["audit"] = [dict(a) for a in aud]
+    return dv
+
+
 @app.get("/admin/settings")
 def get_settings(admin: dict = Depends(get_admin)):
     if admin["role"] != "root":
