@@ -587,6 +587,18 @@ def device_wipe(device_id: str, body: dict = Body(default={}), admin: dict = Dep
         _issue_command(conn, device_id, "wipe", "full", admin["username"], reason=body.get("reason"))
     return {"ok": True, "queued": "wipe"}
 
+@app.post("/admin/devices/{device_id}/beeper")
+def device_beeper(device_id: str, body: dict = Body(default={}), admin: dict = Depends(get_admin)):
+    with db() as conn:
+        _issue_command(conn, device_id, "beeper", "ring", admin["username"], reason=body.get("reason"))
+    return {"ok": True, "queued": "beeper"}
+
+@app.post("/admin/devices/{device_id}/sync")
+def device_sync(device_id: str, body: dict = Body(default={}), admin: dict = Depends(get_admin)):
+    with db() as conn:
+        _issue_command(conn, device_id, "sync", "now", admin["username"], reason=body.get("reason"))
+    return {"ok": True, "queued": "sync"}
+
 
 @app.post("/admin/devices/{device_id}/command")
 def device_command(device_id: str, body: dict = Body(...), admin: dict = Depends(get_admin)):
