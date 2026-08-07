@@ -312,7 +312,7 @@ async def upload_log(log_date: str, log: UploadFile = File(...), device_id: str 
         path = LOG_ROOT / f"{device_id}.{log_date}.log"
         path.write_bytes(content)
         conn.execute("INSERT INTO log_files(device_id,log_date,stored_path,checksum,size) VALUES(?,?,?,?,?)",
-                     (dev["id"], log_date, str(path), cs, len(content)))
+                     (device_id, log_date, str(path), cs, len(content)))
     return {"receivedSha": cs, "size": len(content)}
 
 
