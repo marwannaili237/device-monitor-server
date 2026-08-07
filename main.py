@@ -16,6 +16,18 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Bod
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+
+def now_local(dt, tzname):
+    """Return dt (UTC) shifted into the configured timezone."""
+    try:
+        return dt.astimezone(ZoneInfo(tzname))
+    except Exception:
+        try:
+            return dt.astimezone(ZoneInfo("Africa/Algiers"))
+        except Exception:
+            return dt
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("DATABASE_URL", "sqlite:///" + str(BASE_DIR / "monitor.db")).split("://")[-1])
@@ -54,13 +66,24 @@ def init_db():
             app_version TEXT, os_version TEXT, package TEXT,
             site_id INTEGER REFERENCES sites(id),
             last_seen_at TEXT, status TEXT DEFAULT 'active',
-            revoked_at TEXT, enrolled_at TEXT DEFAULT (datetime('now'))
+            revoked_at TEXT, enrolled_at TEXT DEFAULT (datetime('now')),
+            lat REAL, lng REAL, location_at TEXT, speed REAL
         );
         CREATE TABLE IF NOT EXISTS log_files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             device_id INTEGER REFERENCES devices(id),
             log_date TEXT, stored_path TEXT, checksum TEXT,
             size INTEGER DEFAULT 0, fetched_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS location_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id INTEGER REFERENCES devices(id),
+            lat REAL, lng REAL, speed REAL,
+            ts TEXT
+        );
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
         );
         CREATE TABLE IF NOT EXISTS audit (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,6 +95,15 @@ def init_db():
             pw = os.environ.get("ROOT_PASSWORD", "change-me-root")
             conn.execute("INSERT INTO admins(username,password_hash,role) VALUES(?,?,?)",
                          ("root", bc.hash(pw), "root"))
+        # default work-hours settings (24h). The admin panel overrides these.
+        defaults = [
+            ("work_start", "07:00"), ("work_end", "19:00"),
+            ("work_active", "1"),    # 1 = enforce work-hours window for location
+            ("location_interval_s", "60"),
+            ("timezone", "Africa/Algiers"),
+        ]
+        for k, v in defaults:
+            conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
 
 
 @app.on_event("startup")
@@ -123,6 +155,9 @@ def register(body: RegisterBody):
 class PulseBody(BaseModel):
     device_id: str
     app_version: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    speed: Optional[float] = None
 
 
 @app.post("/device/pulse")
@@ -130,10 +165,29 @@ def pulse(body: PulseBody):
     now = datetime.utcnow().isoformat()
     with db() as conn:
         row = conn.execute("SELECT status FROM devices WHERE device_id=?", (body.device_id,)).fetchone()
-        conn.execute("UPDATE devices SET last_seen_at=? WHERE device_id=?", (now, body.device_id))
+        # Determine work-hours state from admin settings
+        srow = conn.execute("SELECT key,value FROM settings WHERE key IN ('work_start','work_end','work_active','timezone')").fetchall()
+        st = {r["key"]: r["value"] for r in srow}
+        work_enforce = st.get("work_active", "1") == "1"
+        locally = now_local(datetime.utcnow(), st.get("timezone", "Africa/Algiers"))
+        if work_enforce:
+            start_s, end_s = st.get("work_start", "07:00"), st.get("work_end", "19:00")
+            in_hours = int(locally.strftime("%H%M")) >= int(start_s.replace(":", "")) and \
+                       int(locally.strftime("%H%M")) <= int(end_s.replace(":", ""))
+        else:
+            in_hours = True
+        if row and body.lat is not None and body.lng is not None and in_hours:
+            conn.execute("UPDATE devices SET last_seen_at=?, lat=?, lng=?, speed=?, location_at=? WHERE device_id=?",
+                         (now, body.lat, body.lng, body.speed, now, body.device_id))
+            conn.execute("INSERT INTO location_history(device_id,lat,lng,speed,ts) "
+                         "SELECT id,?,?,?,? FROM devices WHERE device_id=?",
+                         (body.lat, body.lng, body.speed, now, body.device_id))
+        elif row:
+            conn.execute("UPDATE devices SET last_seen_at=? WHERE device_id=?", (now, body.device_id))
     if not row:
         raise HTTPException(404, "device not enrolled")
-    return {"status": row["status"], "action": "none" if row["status"] == "active" else "revoked"}
+    return {"status": row["status"], "action": "none" if row["status"] == "active" else "revoked",
+            "in_work_hours": in_hours}
 
 
 def _sha(s: str) -> str:
@@ -268,4 +322,56 @@ def create_admin(body: dict = Body(...), admin: dict = Depends(get_admin)):
     with db() as conn:
         conn.execute("INSERT INTO admins(username,password_hash,role,site_id) VALUES(?,?,?,?)",
                      (body.get("username"), bc.hash(body.get("password")), body.get("role", "site_admin"), body.get("site_id")))
+    return {"ok": True}
+
+
+@app.delete("/admin/devices/{device_id}")
+def delete_device(device_id: str, admin: dict = Depends(get_admin)):
+    if admin["role"] != "root":
+        raise HTTPException(403, "root only")
+    with db() as conn:
+        d = conn.execute("SELECT id FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        if not d:
+            raise HTTPException(404, "device not found")
+        conn.execute("DELETE FROM log_files WHERE device_id=?", (d["id"],))
+        conn.execute("DELETE FROM location_history WHERE device_id=?", (d["id"],))
+        conn.execute("DELETE FROM devices WHERE id=?", (d["id"],))
+        conn.execute("INSERT INTO audit(actor,action,target,ts) VALUES(?,?,?,?)",
+                     (admin["username"], "delete", device_id, datetime.utcnow().isoformat()))
+    return {"ok": True, "deleted": device_id}
+
+
+@app.get("/admin/devices/{device_id}/locations")
+def device_locations(device_id: str, admin: dict = Depends(get_admin)):
+    with db() as conn:
+        if admin["role"] == "root":
+            dev = conn.execute("SELECT id FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        else:
+            dev = conn.execute("SELECT id FROM devices WHERE device_id=? AND site_id=?", (device_id, admin["site_id"])).fetchone()
+        if not dev:
+            raise HTTPException(404, "device not found")
+        rows = conn.execute(
+            "SELECT lat,lng,speed,ts FROM location_history WHERE device_id=? ORDER BY ts DESC LIMIT 500",
+            (dev["id"],)).fetchall()
+    return {"locations": [dict(r) for r in rows]}
+
+
+@app.get("/admin/settings")
+def get_settings(admin: dict = Depends(get_admin)):
+    if admin["role"] != "root":
+        raise HTTPException(403, "root only")
+    with db() as conn:
+        rows = conn.execute("SELECT key,value FROM settings").fetchall()
+    return {r["key"]: r["value"] for r in rows}
+
+
+@app.post("/admin/settings")
+def set_settings(body: dict = Body(...), admin: dict = Depends(get_admin)):
+    if admin["role"] != "root":
+        raise HTTPException(403, "root only")
+    allowed = {"work_start", "work_end", "work_active", "location_interval_s", "timezone"}
+    with db() as conn:
+        for k, v in body.items():
+            if k in allowed:
+                conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", (k, str(v)))
     return {"ok": True}
