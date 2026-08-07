@@ -23,6 +23,9 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--dim);font-weight:600;font-size:12px;white-space:nowrap}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.kpi{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px}
+.kpi .num{font-size:26px;font-weight:700}
+.kpi .lbl{color:var(--dim);font-size:12px;margin-top:2px}
 .badge.active{background:rgba(35,134,54,.2);color:#3fb950}
 .badge.revoked{background:rgba(248,81,73,.2);color:#f85149}
 .dim{color:var(--dim)}
@@ -51,11 +54,22 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
   <div class="panel hidden" id="mainPanel">
     <div class="row">
       <button onclick="loadDevices()">Refresh devices</button>
+      <button class="ghost" onclick="show('dashPanel'); loadMetrics()">Dashboard</button>
       <button class="ghost" onclick="show('mapPanel'); loadDevices(); renderMap();">Map</button>
       <button class="ghost" onclick="show('settingsPanel'); loadSettings()">Settings</button>
       <button class="ghost" onclick="loadAudit()">Audit log</button>
       <span class="dim" id="roleTag"></span>
       <button class="ghost danger" onclick="logout()" style="margin-left:auto">Sign out</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="dashPanel">
+    <strong>Overview</strong> <span class="dim" style="float:right" id="dashTick"></span>
+    <div class="kpis" id="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px"></div>
+    <div class="row" style="margin-top:14px">
+      <div class="col"><strong style="font-size:13px">Policy violations</strong><div id="dashViol" class="dim" style="font-size:13px;margin-top:6px"></div></div>
+      <div class="col"><strong style="font-size:13px">Admin actions</strong><div id="dashActions" class="dim" style="font-size:13px;margin-top:6px"></div></div>
+      <div class="col"><strong style="font-size:13px">Recent audit</strong><div id="dashAudit" class="dim" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace"></div></div>
     </div>
   </div>
 
@@ -140,7 +154,7 @@ async function login(){
 function logout(){
   if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
   token = ""; role = ""; localStorage.removeItem("dm_token");
-  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel"); hide("mapPanel"); hide("settingsPanel");
+  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel"); hide("mapPanel"); hide("settingsPanel"); hide("dashPanel");
   show("loginPanel"); el("who").textContent = "Company-owned device fleet";
 }
 
@@ -163,6 +177,8 @@ async function loadDevices(){
         '<td class="dim">'+last+'</td>'+
         '<td>'+esc(dev.site_id||"—")+'</td>'+
         '<td><button class="ghost" onclick="openLogs(\''+esc(dev.device_id)+'\')">logs</button> '+
+        '<button class="ghost" onclick="lock(\''+esc(dev.device_id)+'\')">lock</button> '+
+        (role==="root" ? '<button class="danger" onclick="wipe(\''+esc(dev.device_id)+'\')">wipe</button> ' : '')+
         (dev.status==="revoked"
           ? '<button class="ghost" onclick="restore(\''+esc(dev.device_id)+'\')">restore</button>'
           : '<button class="danger" onclick="revoke(\''+esc(dev.device_id)+'\')">revoke</button>')+
@@ -172,12 +188,64 @@ async function loadDevices(){
   }catch(e){ el("devErr").textContent = e.message; show("devErr"); }
 }
 
+async function loadMetrics(){
+  hide("devErr");
+  try{
+    const m = await api("/admin/metrics");
+    el("dashTick").textContent = "updated " + new Date().toLocaleTimeString();
+    const k = el("kpis"); k.innerHTML = "";
+    const cards = [
+      ["Active", m.active, "var(--accent)"],
+      ["Offline", m.offline, m.offline>0?"var(--warn)":"var(--fg)"],
+      ["Total", m.total, "var(--fg)"],
+      ["Revoked", m.revoked, m.revoked>0?"var(--danger)":"var(--fg)"],
+      ["Low battery", m.low_battery, m.low_battery>0?"var(--warn)":"var(--fg)"],
+      ["Avg health", m.avg_health + "%", m.avg_health<60?"var(--danger)":"var(--fg)"],
+      ["Free storage", fmtBytes(m.free_storage), "var(--fg)"],
+      ["Storage used", fmtBytes(m.total_storage - m.free_storage), "var(--fg)"],
+    ];
+    cards.forEach(c => {
+      const div = document.createElement("div"); div.className = "kpi";
+      div.innerHTML = '<div class="num" style="color:'+c[2]+'">'+c[1]+'</div><div class="lbl">'+c[0]+'</div>';
+      k.appendChild(div);
+    });
+    // policy violations / compliance
+    const c = await api("/admin/compliance");
+    const bad = (c.devices||[]).filter(d => !d.ok);
+    el("dashViol").innerHTML = bad.length
+      ? bad.map(d => "<div>• <b>"+esc(d.device_id)+"</b>: "+d.issues.join(", ")+"</div>").join("")
+      : "No compliance issues" + (m.total? "" : " (no devices yet)");
+    // admin actions
+    const acts = (m.admin_actions||[]).map(a => a.action.replace("command:","")+" → "+a.result+" ("+a.count+")").join("<br>");
+    el("dashActions").innerHTML = acts || "No admin actions yet";
+    // recent audit
+    el("dashAudit").innerHTML = (m.recent_audit||[]).slice(0,8).map(a =>
+      "<div>"+esc(a.actor)+" · "+esc(a.action)+" · "+esc(a.target||"-")+" · "+(a.reason?"<span style='color:var(--warn)'>("+esc(a.reason)+")</span>":"")+"</div>").join("");
+  }catch(e){ el("devErr").textContent = e.message; show("devErr"); }
+}
+function fmtBytes(b){
+  if(!b || b<=0) return "0";
+  const u = ["B","KB","MB","GB","TB"]; let i=0; b=Number(b);
+  while(b>=1024 && i<u.length-1){ b/=1024; i++; }
+  return b.toFixed(1)+" "+u[i];
+}
+
 async function revoke(id){
   if(!confirm("Revoke device "+id+"? (app will stop on next pulse)")) return;
   try{ await api("/admin/devices/"+encodeURIComponent(id)+"/revoke", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
 }
 async function restore(id){
   try{ await api("/admin/devices/"+encodeURIComponent(id)+"/restore", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
+}
+
+async function lock(id){
+  const reason = prompt("Reason / ticket for locking "+id+"? (recorded in audit)") || "";
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/lock", {method:"POST", body: JSON.stringify({reason})}); alert("Lock command sent — device will lock on next check-in."); loadDevices(); }catch(e){ alert(e.message); }
+}
+async function wipe(id){
+  if(!confirm("PERMANENTLY WIPE device "+id+"? This erases company data. This action is audited.")) return;
+  const reason = prompt("Reason / ticket for this wipe? (recorded in audit)") || "";
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/wipe", {method:"POST", body: JSON.stringify({reason})}); alert("Wipe command sent — device wipes on next check-in."); loadDevices(); }catch(e){ alert(e.message); }
 }
 
 function openLogs(id){ loadLogs(id); }
