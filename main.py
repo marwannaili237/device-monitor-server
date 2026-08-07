@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Body, Header
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 from typing import Optional
 
@@ -155,6 +156,15 @@ async def upload_log(log_date: str, log: UploadFile = File(...), device_id: str 
 
 
 # ---------- Admin endpoints ----------
+@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin/", response_class=HTMLResponse)
+def admin_ui():
+    idx = BASE_DIR / "static" / "index.html"
+    if idx.exists():
+        return HTMLResponse(idx.read_text(encoding="utf-8"))
+    return HTMLResponse("<h3>Admin UI not deployed (missing static/index.html).</h3>")
+
+
 @app.get("/admin/health")
 def health():
     return {"ok": True}
@@ -196,6 +206,25 @@ def device_logs(device_id: str, admin: dict = Depends(get_admin)):
                 "JOIN devices d ON d.id=l.device_id WHERE d.device_id=? AND d.site_id=?",
                 (device_id, admin["site_id"])).fetchall()
     return {"logs": [dict(r) for r in rows]}
+
+
+@app.get("/admin/devices/{device_id}/logs/{log_date}/content", response_class=PlainTextResponse)
+def log_content(device_id: str, log_date: str, admin: dict = Depends(get_admin)):
+    with db() as conn:
+        if admin["role"] == "root":
+            dev = conn.execute("SELECT id FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        else:
+            dev = conn.execute("SELECT id FROM devices WHERE device_id=? AND site_id=?", (device_id, admin["site_id"])).fetchone()
+        if not dev:
+            raise HTTPException(404, "device not found")
+        row = conn.execute("SELECT stored_path FROM log_files WHERE device_id=? AND log_date=?",
+                           (dev["id"], log_date)).fetchone()
+    if not row:
+        raise HTTPException(404, "no log for that date")
+    p = Path(row["stored_path"])
+    if not p.exists():
+        raise HTTPException(404, "stored file missing on server")
+    return PlainTextResponse(p.read_text(errors="replace"))
 
 
 @app.post("/admin/devices/{device_id}/revoke")

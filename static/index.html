@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device Monitor — Admin</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--dim:#8b949e;--accent:#238636;--danger:#f85149;--warn:#d29922;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--dim);font-size:13px;margin-bottom:20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+label{font-size:12px;color:var(--dim);display:block;margin-bottom:4px}
+input{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:8px 10px;font-size:14px;min-width:220px}
+button{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer}
+button:hover{filter:brightness(1.12)}
+button.danger{background:var(--danger)}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:12px;white-space:nowrap}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.active{background:rgba(35,134,54,.2);color:#3fb950}
+.badge.revoked{background:rgba(248,81,73,.2);color:#f85149}
+.dim{color:var(--dim)}
+.hidden{display:none}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;font-size:12px;max-height:400px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-top:10px}
+.err{color:var(--danger);font-size:13px;margin-top:8px}
+.msg{color:var(--accent);font-size:13px;margin-top:8px}
+.lk{color:#58a6ff;background:none;border:none;padding:0;font-size:13px;cursor:pointer;text-decoration:underline}
+@media(max-width:560px){table,thead,tbody,tr,th,td{display:block}thead{display:none}tr{margin-bottom:10px;border:1px solid var(--line);border-radius:6px}td{border:none;padding:6px 10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Device Monitor — Admin Console</h1>
+  <div class="sub" id="who">Company-owned device fleet</div>
+
+  <div class="panel" id="loginPanel">
+    <div class="row">
+      <div><label>Username</label><input id="u" value="root" autocomplete="username"></div>
+      <div><label>Password</label><input id="p" type="password" autocomplete="current-password"></div>
+      <button onclick="login()">Sign in</button>
+    </div>
+    <div class="err hidden" id="loginErr"></div>
+  </div>
+
+  <div class="panel hidden" id="mainPanel">
+    <div class="row">
+      <button onclick="loadDevices()">Refresh devices</button>
+      <button class="ghost" onclick="loadAudit()">Audit log</button>
+      <span class="dim" id="roleTag"></span>
+      <button class="ghost danger" onclick="logout()" style="margin-left:auto">Sign out</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="devicesPanel">
+    <strong>Devices</strong>
+    <table id="devTable">
+      <thead><tr><th>Device</th><th>Status</th><th>App/OS</th><th>Last seen</th><th>Site</th><th>Actions</th></tr></thead>
+      <tbody id="devBody"></tbody>
+    </table>
+    <div class="err hidden" id="devErr"></div>
+  </div>
+
+  <div class="panel hidden" id="logsPanel">
+    <strong>Device logs</strong>
+    <div class="row" style="margin-top:10px">
+      <div><label>Device ID</label><input id="logDev" placeholder="device_id"></div>
+      <button onclick="loadLogs()">List logs</button>
+    </div>
+    <div class="row" style="margin-top:10px" id="logList"></div>
+    <pre class="hidden" id="logBody"></pre>
+    <div class="err hidden" id="logErr"></div>
+  </div>
+
+  <div class="panel hidden" id="auditPanel">
+    <strong>Audit log</strong>
+    <div id="auditBody" style="font-size:13px;margin-top:10px;font-family:ui-monospace,monospace"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem("dm_token") || "";
+let role = "";
+
+async function api(path, opts){
+  opts = opts || {};
+  const headers = Object.assign({"Content-Type":"application/json"}, opts.headers || {});
+  if(token) headers["Authorization"] = "Bearer " + token;
+  const r = await fetch(path, Object.assign({}, opts, {headers}));
+  if(r.status===401){ logout(); throw new Error("Session expired — sign in again"); }
+  const txt = await r.text();
+  let j = {}; try { j = JSON.parse(txt); } catch(e){ j = {}; }
+  if(!r.ok) throw new Error(j.detail || (txt||r.statusText));
+  return j;
+}
+const el = id => document.getElementById(id);
+function show(id){ el(id).classList.remove("hidden"); }
+function hide(id){ el(id).classList.add("hidden"); }
+
+async function login(){
+  hide("loginErr");
+  const username = el("u").value.trim(), password = el("p").value;
+  if(!username || !password){ el("loginErr").textContent = "Enter username and password"; show("loginErr"); return; }
+  try{
+    const d = await api("/admin/login", {method:"POST", body: JSON.stringify({username, password})});
+    token = d.token; role = d.role; localStorage.setItem("dm_token", token);
+    hide("loginPanel"); show("mainPanel"); show("devicesPanel"); show("logsPanel");
+    el("who").textContent = "Signed in: " + username + " · " + role;
+    el("roleTag").textContent = role + (d.site_id ? " (site "+d.site_id+")" : "");
+    loadDevices(); loadLogs();
+  }catch(e){ el("loginErr").textContent = e.message; show("loginErr"); }
+}
+
+function logout(){
+  token = ""; role = ""; localStorage.removeItem("dm_token");
+  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel");
+  show("loginPanel"); el("who").textContent = "Company-owned device fleet";
+}
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+async function loadDevices(){
+  hide("devErr");
+  try{
+    const d = await api("/admin/devices");
+    const tb = el("devBody"); tb.innerHTML = "";
+    if(!d.devices || !d.devices.length){ tb.innerHTML = '<tr><td colspan="6" class="dim">No devices enrolled yet.</td></tr>'; return; }
+    d.devices.forEach(dev => {
+      const st = dev.status === "revoked" ? '<span class="badge revoked">revoked</span>' : '<span class="badge active">active</span>';
+      const last = dev.last_seen_at ? dev.last_seen_at.slice(0,19).replace("T"," ") : "—";
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><b>'+esc(dev.device_id)+'</b><br><span class="dim">'+esc(dev.package||"")+'</span></td>'+
+        '<td>'+st+'</td>'+
+        '<td>'+(esc(dev.app_version||"—"))+'<br><span class="dim">'+esc(dev.os_version||"")+'</span></td>'+
+        '<td class="dim">'+last+'</td>'+
+        '<td>'+esc(dev.site_id||"—")+'</td>'+
+        '<td><button class="ghost" onclick="openLogs(\''+esc(dev.device_id)+'\')">logs</button> '+
+        (dev.status==="revoked"
+          ? '<button class="ghost" onclick="restore(\''+esc(dev.device_id)+'\')">restore</button>'
+          : '<button class="danger" onclick="revoke(\''+esc(dev.device_id)+'\')">revoke</button>')+
+        '</td>';
+      tb.appendChild(tr);
+    });
+  }catch(e){ el("devErr").textContent = e.message; show("devErr"); }
+}
+
+async function revoke(id){
+  if(!confirm("Revoke device "+id+"? (app will stop on next pulse)")) return;
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/revoke", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
+}
+async function restore(id){
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/restore", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
+}
+
+function openLogs(id){ el("logDev").value = id; loadLogs(); }
+
+async function loadLogs(){
+  hide("logErr"); hide("logBody");
+  const id = el("logDev").value.trim();
+  if(!id){ el("logErr").textContent = "Enter a device ID"; show("logErr"); return; }
+  el("logList").innerHTML = "";
+  try{
+    const d = await api("/admin/devices/"+encodeURIComponent(id)+"/logs");
+    if(!d.logs || !d.logs.length){ el("logList").innerHTML = '<span class="dim">No logs uploaded for this device.</span>'; return; }
+    d.logs.forEach(l => {
+      const btn = document.createElement("button");
+      btn.className = "ghost"; btn.textContent = l.log_date + "  (" + l.size + " B)";
+      btn.onclick = () => viewLog(id, l.log_date);
+      el("logList").appendChild(btn);
+    });
+  }catch(e){ el("logErr").textContent = e.message; show("logErr"); }
+}
+
+// backend has no raw-content GET; show metadata for now (see note)
+async function viewLog(id, date){
+  el("logErr").classList.add("hidden");
+  try{
+    const r = await fetch("/admin/devices/"+encodeURIComponent(id)+"/logs/"+date+"/content", {headers:{"Authorization":"Bearer "+token}});
+    const txt = await r.text();
+    if(!r.ok){ el("logErr").textContent = txt; show("logErr"); return; }
+    el("logBody").textContent = txt; show("logBody");
+  }catch(e){ el("logErr").textContent = e.message; show("logErr"); }
+}
+
+async function loadAudit(){
+  show("auditPanel");
+  const ab = el("auditBody");
+  try{
+    const d = await api("/admin/audit");
+    ab.innerHTML = (d.audit && d.audit.length)
+      ? d.audit.map(a => esc(a.ts || "").slice(0,19) + " · " + esc(a.actor) + " " + esc(a.action) + " " + esc(a.target)).join("<br>")
+      : '<span class="dim">No audit entries.</span>';
+  }catch(e){ ab.innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
+}
+</script>
+</body>
+</html>
