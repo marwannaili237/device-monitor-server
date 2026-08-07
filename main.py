@@ -412,7 +412,7 @@ def log_content(device_id: str, log_date: str, admin: dict = Depends(get_admin))
         if not dev:
             raise HTTPException(404, "device not found")
         row = conn.execute("SELECT stored_path FROM log_files WHERE device_id=? AND log_date=?",
-                           (dev["id"], log_date)).fetchone()
+                           (device_id, log_date)).fetchone()
     if not row:
         raise HTTPException(404, "no log for that date")
     p = Path(row["stored_path"])
