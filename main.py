@@ -272,9 +272,8 @@ def pulse(body: PulseBody):
         if row and body.lat is not None and body.lng is not None and in_hours:
             conn.execute("UPDATE devices SET last_seen_at=?, lat=?, lng=?, speed=?, location_at=?, battery_pct=COALESCE(?,battery_pct), charging=COALESCE(?,charging) WHERE device_id=?",
                          (now, body.lat, body.lng, body.speed, now, body.battery_pct, body.charging, body.device_id))
-            conn.execute("INSERT INTO location_history(device_id,lat,lng,speed,ts) "
-                         "SELECT id,?,?,?,? FROM devices WHERE device_id=?",
-                         (body.lat, body.lng, body.speed, now, body.device_id))
+            conn.execute("INSERT INTO location_history(device_id,lat,lng,speed,ts) VALUES(?,?,?,?,?)",
+                         (body.device_id, body.lat, body.lng, body.speed, now))
         elif row:
             conn.execute("UPDATE devices SET last_seen_at=?, battery_pct=COALESCE(?,battery_pct), charging=COALESCE(?,charging) WHERE device_id=?",
                          (now, body.battery_pct, body.charging, body.device_id))
@@ -476,8 +475,9 @@ def delete_device(device_id: str, admin: dict = Depends(get_admin)):
         d = conn.execute("SELECT id FROM devices WHERE device_id=?", (device_id,)).fetchone()
         if not d:
             raise HTTPException(404, "device not found")
-        conn.execute("DELETE FROM log_files WHERE device_id=?", (d["id"],))
-        conn.execute("DELETE FROM location_history WHERE device_id=?", (d["id"],))
+        # child tables key off the client UUID string (device_id), PK is numeric id
+        for t in ("log_files", "location_history", "apps", "commands", "geofences", "device_policy"):
+            conn.execute(f"DELETE FROM {t} WHERE device_id=?", (device_id,))
         conn.execute("DELETE FROM devices WHERE id=?", (d["id"],))
         audit(conn, admin["username"], "delete", target=device_id, result="ok", device_id=device_id)
     return {"ok": True, "deleted": device_id}
@@ -494,7 +494,7 @@ def device_locations(device_id: str, admin: dict = Depends(get_admin)):
             raise HTTPException(404, "device not found")
         rows = conn.execute(
             "SELECT lat,lng,speed,ts FROM location_history WHERE device_id=? ORDER BY ts DESC LIMIT 500",
-            (dev["id"],)).fetchall()
+            (device_id,)).fetchall()
     return {"locations": [dict(r) for r in rows]}
 
 
