@@ -33,6 +33,10 @@ th{color:var(--dim);font-weight:600;font-size:12px;white-space:nowrap}
 pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;font-size:12px;max-height:400px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-top:10px}
 .err{color:var(--danger);font-size:13px;margin-top:8px}
 .msg{color:var(--accent);font-size:13px;margin-top:8px}
+button.on{
+  background:var(--fg);color:var(--bg);font-weight:600;border-color:var(--fg);
+}
+button.ghost.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:600}
 .lk{color:#58a6ff;background:none;border:none;padding:0;font-size:13px;cursor:pointer;text-decoration:underline}
 @media(max-width:560px){table,thead,tbody,tr,th,td{display:block}thead{display:none}tr{margin-bottom:10px;border:1px solid var(--line);border-radius:6px}td{border:none;padding:6px 10px}}
 </style>
@@ -76,10 +80,31 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
   <div class="panel hidden" id="devicesPanel">
     <strong>Devices</strong>
     <table id="devTable">
-      <thead><tr><th>Device</th><th>Status</th><th>App/OS</th><th>Last seen</th><th>Site</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Device</th><th>Status</th><th>OS/Model</th><th>Battery / Location</th><th>Last seen</th><th></th></tr></thead>
       <tbody id="devBody"></tbody>
     </table>
     <div class="err hidden" id="devErr"></div>
+  </div>
+
+  <div class="panel hidden" id="devicePanel">
+    <div class="row" style="margin-bottom:10px">
+      <button class="ghost" onclick="backToDevices()">← All devices</button>
+      <button class="ghost" onclick="loadDetail(curDevice)">↻ Refresh</button>
+      <span class="dim" id="dev0status"></span>
+    </div>
+    <!-- identity + live stats -->
+    <div class="row">
+      <div class="col" style="flex:1"><strong id="dev0name" style="font-size:18px"></strong><br>
+        <span class="dim" id="dev0model"></span></div>
+      <div class="col"><span class="badge" id="dev0badge"></span></div>
+    </div>
+    <div class="kpis" id="dev0kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px"></div>
+    <div style="margin-top:12px" id="dev0storage"></div>
+    <!-- actions row -->
+    <div class="row" style="margin-top:14px" id="dev0actions"></div>
+    <!-- tabs -->
+    <div class="row" style="margin-top:16px;gap:6px" id="dev0tabs"></div>
+    <div id="dev0body" style="margin-top:12px"></div>
   </div>
 
   <div class="panel hidden" id="mapPanel">
@@ -154,7 +179,7 @@ async function login(){
 function logout(){
   if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
   token = ""; role = ""; localStorage.removeItem("dm_token");
-  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel"); hide("mapPanel"); hide("settingsPanel"); hide("dashPanel");
+  hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel"); hide("mapPanel"); hide("settingsPanel"); hide("dashPanel"); hide("devicePanel");
   show("loginPanel"); el("who").textContent = "Company-owned device fleet";
 }
 
@@ -170,19 +195,17 @@ async function loadDevices(){
     d.devices.forEach(dev => {
       const st = dev.status === "revoked" ? '<span class="badge revoked">revoked</span>' : '<span class="badge active">active</span>';
       const last = dev.last_seen_at ? dev.last_seen_at.slice(0,19).replace("T"," ") : "—";
+      const bat = (dev.battery_pct!=null)? '<span style="color:'+(dev.battery_pct<20?'var(--danger)':'var(--fg)')+'">'+(dev.charging?'🔌':'')+dev.battery_pct+'%</span>':'—';
+      const loc = (dev.lat!=null)? '<span style="color:var(--accent)">'+dev.lat.toFixed(3)+', '+dev.lng.toFixed(3)+'</span>' : '—';
       const tr = document.createElement("tr");
-      tr.innerHTML = '<td><b>'+esc(dev.device_id)+'</b><br><span class="dim">'+esc(dev.package||"")+'</span></td>'+
+      tr.style.cursor = "pointer";
+      tr.onclick = () => openDevice(esc(dev.device_id));
+      tr.innerHTML = '<td><b>'+esc(dev.device_id.slice(0,8))+'…</b><br><span class="dim">'+esc(dev.package||"")+'</span></td>'+
         '<td>'+st+'</td>'+
-        '<td>'+(esc(dev.app_version||"—"))+'<br><span class="dim">'+esc(dev.os_version||"")+'</span></td>'+
+        '<td>'+(esc(dev.os_version||"—")+"/"+(dev.sdk||"—"))+'<br><span class="dim">'+esc(dev.model||"")+'</span></td>'+
+        '<td>'+bat+'<br><span class="dim">'+loc+'</span></td>'+
         '<td class="dim">'+last+'</td>'+
-        '<td>'+esc(dev.site_id||"—")+'</td>'+
-        '<td><button class="ghost" onclick="openLogs(\''+esc(dev.device_id)+'\')">logs</button> '+
-        '<button class="ghost" onclick="lock(\''+esc(dev.device_id)+'\')">lock</button> '+
-        (role==="root" ? '<button class="danger" onclick="wipe(\''+esc(dev.device_id)+'\')">wipe</button> ' : '')+
-        (dev.status==="revoked"
-          ? '<button class="ghost" onclick="restore(\''+esc(dev.device_id)+'\')">restore</button>'
-          : '<button class="danger" onclick="revoke(\''+esc(dev.device_id)+'\')">revoke</button>')+
-        '</td>';
+        '<td><button class="ghost" onclick="event.stopPropagation(); openDevice(\''+esc(dev.device_id)+'\')">Open console</button></td>';
       tb.appendChild(tr);
     });
   }catch(e){ el("devErr").textContent = e.message; show("devErr"); }
@@ -230,9 +253,175 @@ function fmtBytes(b){
   return b.toFixed(1)+" "+u[i];
 }
 
+let curDevice = null;
+let detailCache = null;
+
+function backToDevices(){ curDevice=null; detailCache=null; hide("devicePanel"); show("devicesPanel"); loadDevices(); }
+function openDevice(id){ curDevice = id; hide("devicesPanel"); show("devicePanel"); el("dev0name").textContent = id.slice(0,8)+"… ("+id.slice(0,4)+")"; loadDetail(id); }
+
+async function loadDetail(id){
+  el("dev0status").textContent = "loading…";
+  try{
+    const d = await api("/admin/devices/"+encodeURIComponent(id)+"/detail");
+    detailCache = d;
+    el("dev0name").textContent = d.device_id.slice(0,8)+"…";
+    el("dev0model").textContent = (d.manufacturer||"")+" "+(d.model||"")+" · Android "+(d.os_version||"?")+" (API "+(d.sdk||"?")+") · patch "+(d.security_patch||"—")+" · Android ID "+esc(d.android_id||"—");
+    const badge = el("dev0badge"); badge.className="badge "+(d.status==="revoked"?"revoked":"active"); badge.textContent = d.status;
+    el("dev0status").textContent = "last pulse: "+(d.last_seen_at?d.last_seen_at.slice(0,19).replace("T"," "):"—");
+    // KPIs
+    const k = el("dev0kpis"); k.innerHTML="";
+    [["Online/offline", lastSeenLabel(d.last_seen_at), "#"],
+     ["Battery", (d.battery_pct!=null? d.battery_pct+"%":"—")+(d.charging?" · charging":""), (d.battery_pct!=null&&d.battery_pct<20?"var(--danger)":"var(--fg)")],
+     ["Compliance", (d.compliance&&d.compliance.length? d.compliance.join(", ") : "OK"), (d.compliance&&d.compliance.length?"var(--danger)":"var(--accent)")],
+     ["Geofences", (d.geofences?d.geofences.length:0)+" active", "var(--fg)"],
+     ["Pending cmds", (d.commands?d.commands.length:0), (d.commands&&d.commands.length?"var(--warn)":"var(--fg)")],
+    ].forEach(c => { const div=document.createElement("div"); div.className="kpi"; div.innerHTML='<div class="num" style="color:'+c[2]+'">'+c[1]+'</div><div class="lbl">'+c[0]+'</div>'; k.appendChild(div); });
+    // storage bar
+    const stTot=d.storage_total||0, stFree=d.storage_free||0, stUsed=Math.max(0,stTot-stFree);
+    const pct = stTot>0? Math.round(stUsed/stTot*100):0;
+    el("dev0storage").innerHTML = '<strong style="font-size:13px">Storage</strong> <span class="dim">'+fmtBytes(stUsed)+' used of '+fmtBytes(stTot)+'</span> ('+pct+'% full · '+fmtBytes(stFree)+' free)'+
+      '<div style="background:var(--bg);border:1px solid var(--line);border-radius:6px;height:10px;margin-top:6px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+(pct>85?'var(--danger)':'var(--accent)')+'"></div></div>';
+    // actions
+    el("dev0actions").innerHTML =
+      '<button onclick="runCmd(\''+esc(id)+'\',\'lock\')">🔒 Lock</button> '+
+      (role==="root"?'<button class="danger" onclick="runCmd(\''+esc(id)+'\',\'wipe\')">🗑 Wipe</button> ':'')+
+      '<button class="ghost" onclick="runCmd(\''+esc(id)+'\',\'beeper\')">🔔 Beep</button> '+
+      '<button class="ghost" onclick="runCmd(\''+esc(id)+'\',\'sync\')">🔄 Sync</button> '+
+      '<span style="margin-left:6px"><input id="customCmd" placeholder="custom command" style="min-width:150px"> <button class="ghost" onclick="runCustom(\''+esc(id)+'\')">Send</button></span>';
+    // tabs
+    el("dev0tabs").innerHTML = ['Overview','Apps','Keystrokes / activity','Location','Policy & geofence','Audit',].map((t,i)=>
+      '<button class="ghost '+(i===0?'on':'')+'" data-t="'+i+'" onclick="consoleTab(\''+esc(id)+'\',this)">'+t+'</button>').join('');
+    consoleTab(id, document.querySelector('#dev0tabs button'));
+  }catch(e){ el("dev0status").innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
+}
+
+function lastSeenLabel(ts){
+  if(!ts) return "never";
+  const d = new Date(ts+"Z"); const diff = (Date.now()-d.getTime())/1000;
+  if(diff < 120) return "online";
+  if(diff < 3600) return "offline · "+(Math.round(diff/60))+"m ago";
+  return "offline · "+(Math.round(diff/3600))+"h ago";
+}
+
+function consoleTab(id, btn){
+  document.querySelectorAll('#dev0tabs button').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  const t = btn? btn.dataset.t : "0";
+  const b = el("dev0body"); b.innerHTML = '<span class="dim">…</span>';
+  const d = detailCache || {};
+  if(t==="0"){ b.innerHTML = renderOverview(d); }
+  else if(t==="1"){ b.innerHTML = renderApps(d); }
+  else if(t==="2"){ loadDeviceLogs(id); }
+  else if(t==="3"){ loadDeviceLocation(id); }
+  else if(t==="4"){ loadDevicePolicy(id); }
+  else { b.innerHTML = renderDeviceAudit(d); }
+}
+function renderOverview(d){
+  let h = '<div class="row" style="gap:18px">';
+  h += '<div><strong style="font-size:13px">Identity</strong><div class="dim" style="margin-top:6px;font-size:13px">'+
+    'OS: '+(d.os_version||"—")+' (SDK '+(d.sdk||"—")+')<br>Model: '+(d.model||"—")+'<br>Manufacturer: '+(d.manufacturer||"—")+'<br>Build: '+(d.build_number||"—")+'<br>Security patch: '+(d.security_patch||"—")+'<br>Android ID: '+(d.android_id||"—")+
+    '</div></div>';
+  h += '<div><strong style="font-size:13px">Compliance</strong><div class="dim" style="margin-top:6px;font-size:13px">'+
+    'Rooted: '+(d.rooted?"<b style='color:var(--danger)'>YES</b>":"no")+'<br>Unknown sources: '+(d.unknown_sources?"<b style='color:var(--danger)'>YES</b>":"no")+'<br>Bootloader: '+(d.unlocked_boot?"<b style='color:var(--danger)'>UNLOCKED</b>":"locked")+
+    '</div></div>';
+  h += '<div><strong style="font-size:13px">Policy</strong><div class="dim" style="margin-top:6px;font-size:13px">'+ (d.policy? Object.entries(d.policy).map(([k,v])=>k+": "+v).join("<br>") : "— default") +'</div></div>';
+  h += '</div>';
+  h += '<div style="margin-top:14px"><strong style="font-size:13px">Last activity (keystroke/focus log)</strong><div class="dim" style="font-size:12px;margin-top:6px;font-family:ui-monospace,monospace;max-height:200px;overflow:auto">'+ (d.lastLog||"Switch to the Logs tab to view captured activity.") +'</div></div>';
+  return h;
+}
+function renderApps(d){
+  const apps = d.apps||[];
+  if(!apps.length) return '<span class="dim">No app inventory reported. Client reports installed apps on next cycle when QUERY_ALL_PACKAGES is granted.</span>';
+  return '<strong style="font-size:13px">'+apps.length+' installed apps</strong><table><thead><tr><th>Label</th><th>Package</th><th>Reported</th></tr></thead><tbody>'+
+    apps.map(a=>'<tr><td>'+esc(a.label||"—")+'</td><td class="dim">'+esc(a.package)+'</td><td class="dim">'+esc((a.updated_at||"").slice(0,19).replace("T"," "))+'</td></tr>').join('')+'</tbody></table>';
+}
+function renderDeviceAudit(d){
+  const aud = d.audit||[];
+  if(!aud.length) return '<span class="dim">No admin actions recorded for this device.</span>';
+  return '<strong style="font-size:13px">Admin actions on this device</strong><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Result</th><th>Reason</th></tr></thead><tbody>'+
+    aud.map(a=>'<tr><td class="dim">'+esc((a.ts||"").slice(0,19).replace("T"," "))+'</td><td>'+esc(a.actor)+'</td><td>'+esc(a.action)+'</td><td>'+esc(a.result||"—")+'</td><td class="dim">'+esc(a.reason||"—")+'</td></tr>').join('')+'</tbody></table>';
+}
+
+function runCmd(id, cmd){
+  if(cmd==="wipe" && !confirm("PERMANENTLY WIPE "+id+"? Audited.")) return;
+  const reason = prompt("Reason / ticket (recorded in audit)") || "";
+  api("/admin/devices/"+encodeURIComponent(id)+"/"+cmd, {method:"POST", body: JSON.stringify({reason})})
+    .then(()=>{ alert(cmd+" command sent. Device executes it on next check-in."); loadDetail(id); })
+    .catch(e=>alert(e.message));
+}
+function runCustom(id){
+  const c = el("customCmd").value.trim(); if(!c) return alert("Enter a command name");
+  api("/admin/devices/"+encodeURIComponent(id)+"/command", {method:"POST", body: JSON.stringify({cmd:c, reason:prompt("Reason?")||""})})
+    .then(()=>{ alert("'"+c+"' queued."); loadDetail(id); }).catch(e=>alert(e.message));
+}
+
+async function loadDeviceLogs(id){
+  const b = el("dev0body"); b.innerHTML = '<span class="dim">Loading captures…</span>';
+  try{
+    const d = await api("/admin/devices/"+encodeURIComponent(id)+"/logs");
+    if(!d.logs || !d.logs.length){ b.innerHTML = '<span class="dim">No captured activity uploaded yet. Ensure Accessibility is enabled, then use the device — it uploads automatically.</span>'; return; }
+    b.innerHTML = '<strong style="font-size:13px">Captured days</strong><div style="margin-top:8px">'+
+      d.logs.map(l=>'<button class="ghost" style="margin:4px" onclick="viewDeviceLog(\''+esc(id)+'\',\''+l.log_date+'\')">'+l.log_date+' · '+l.size+' B</button>').join('')+'</div>'+
+      '<pre class="hidden" id="devlogbody" style="margin-top:10px"></pre>';
+  }catch(e){ b.innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
+}
+async function viewDeviceLog(id, date){
+  const r = await fetch("/admin/devices/"+encodeURIComponent(id)+"/logs/"+date+"/content", {headers:{"Authorization":"Bearer "+token}});
+  const txt = await r.text();
+  const pre = el("devlogbody"); if(!pre) return;
+  pre.textContent = txt; pre.classList.remove("hidden");
+}
+async function loadDeviceLocation(id){
+  const b = el("dev0body"); b.innerHTML = '<span class="dim">Loading location…</span>';
+  try{
+    const d = await api("/admin/devices/"+encodeURIComponent(id)+"/locations");
+    if(!d.locations || !d.locations.length){ b.innerHTML = '<span class="dim">No recorded location. Location is captured only during work hours (see Settings). Enable location + ensure work window.</span>'; return; }
+    b.innerHTML = '<div id="devmap" style="height:280px;background:var(--bg);border:1px solid var(--line);border-radius:6px"></div>'+
+      '<div class="dim" style="font-size:12px;margin-top:8px">'+d.locations.length+' recorded fixes · last: '+esc(d.locations[0].ts.slice(0,19).replace("T"," "))+'</div>';
+    if(typeof L !== "undefined"){ drawDevMap(d.locations); return; }
+    const s=document.createElement("script"); s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload=()=>{const l=document.createElement("link");l.rel="stylesheet";l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(l);drawDevMap(d.locations);};
+    document.head.appendChild(s);
+  }catch(e){ b.innerHTML = '<span class="err">'+esc(e.message)+'</span>'; }
+}
+let devmapEl=null;
+function drawDevMap(locs){
+  const m = el("devmap"); if(!m) return;
+  if(!devmapEl){ devmapEl = L.map(m).setView([locs[0].lat, locs[0].lng], 13); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(devmapEl); }
+  const first=locs[locs.length-1];
+  if(first) L.marker([first.lat, first.lng]).addTo(devmapEl).bindPopup("first fix");
+  locs.slice(0,50).forEach(l=>L.circleMarker([l.lat,l.lng],{radius:3,color:"#58a6ff"}).addTo(devmapEl));
+  devmapEl.invalidateSize();
+}
+async function loadDevicePolicy(id){
+  const b = el("dev0body");
+  const d = detailCache||{};
+  const gfs = d.geofences||[];
+  b.innerHTML = '<div class="row" style="gap:14px"><div><strong style="font-size:13px">Policy for this device</strong>'+
+    '<div style="margin-top:8px;font-size:13px" class="dim">'+ (d.policy? Object.entries(d.policy).map(([k,v])=>k+" = "+v).join("<br>") : "— default policy") +'</div>'+
+    '<div class="row" style="margin-top:10px"><input id="polMin" placeholder="min PIN" style="min-width:90px" value="'+(d.policy&&d.policy.minPinLength||"")+'"> '+
+    '<input id="polLock" placeholder="lock s" style="min-width:90px" value="'+(d.policy&&d.policy.lockTimeoutS||"")+'"> '+
+    '<button onclick="savePolicy(\''+esc(id)+'\')">Apply policy</button></div></div>'+
+    '<div><strong style="font-size:13px">Geofence (HQ boundary)</strong>'+
+    '<div style="margin-top:8px;font-size:13px" class="dim">'+(gfs.length? gfs.map(g=>g.name+" r="+g.radius_m+"m").join(" · ") : "none")+'</div>'+
+    '<div class="row" style="margin-top:10px"><input id="gfLat" placeholder="lat" style="min-width:100px"> <input id="gfLng" placeholder="lng" style="min-width:100px"> <input id="gfR" placeholder="radius m" style="min-width:100px" value="500"> <button onclick="saveGeofence(\''+esc(id)+'\')">Set fence</button></div>'+
+    '</div></div>';
+}
+async function savePolicy(id){
+  const min = el("polMin").value.trim(), lock = el("polLock").value.trim();
+  const pol = {};
+  if(min) pol.minPinLength=parseInt(min); if(lock) pol.lockTimeoutS=parseInt(lock);
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/policy", {method:"POST", body: JSON.stringify({policy:pol})}); alert("Policy saved — enforced on next check-in."); loadDetail(id); }catch(e){ alert(e.message); }
+}
+async function saveGeofence(id){
+  const lat=parseFloat(el("gfLat").value), lng=parseFloat(el("gfLng").value), r=parseFloat(el("gfR").value||"500");
+  if(isNaN(lat)||isNaN(lng)) return alert("Enter lat/lng");
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/geofence", {method:"POST", body: JSON.stringify({name:"HQ",lat,lng,radius_m:r})}); alert("Fence set — breaches are audited."); loadDetail(id); }catch(e){ alert(e.message); }
+}
+
 async function revoke(id){
   if(!confirm("Revoke device "+id+"? (app will stop on next pulse)")) return;
-  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/revoke", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
+  try{ await api("/admin/devices/"+encodeURIComponent(id)+"/revoke", {method:"POST", body:"{}"}); loadDevices(); if(curDevice===id) loadDetail(id); }catch(e){ alert(e.message); }
 }
 async function restore(id){
   try{ await api("/admin/devices/"+encodeURIComponent(id)+"/restore", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
