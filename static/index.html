@@ -68,12 +68,9 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:
 
   <div class="panel hidden" id="logsPanel">
     <strong>Device logs</strong>
-    <div class="row" style="margin-top:10px">
-      <div><label>Device ID</label><input id="logDev" placeholder="device_id"></div>
-      <button onclick="loadLogs()">List logs</button>
-    </div>
     <div class="row" style="margin-top:10px" id="logList"></div>
     <pre class="hidden" id="logBody"></pre>
+    <pre class="hidden" id="logMeta" style="color:var(--dim);border:none;padding:4px 0;margin:0;font-size:12px;max-height:none"></pre>
     <div class="err hidden" id="logErr"></div>
   </div>
 
@@ -109,14 +106,16 @@ async function login(){
   try{
     const d = await api("/admin/login", {method:"POST", body: JSON.stringify({username, password})});
     token = d.token; role = d.role; localStorage.setItem("dm_token", token);
-    hide("loginPanel"); show("mainPanel"); show("devicesPanel"); show("logsPanel");
+    hide("loginPanel"); show("mainPanel"); show("devicesPanel");
     el("who").textContent = "Signed in: " + username + " · " + role;
     el("roleTag").textContent = role + (d.site_id ? " (site "+d.site_id+")" : "");
-    loadDevices(); loadLogs();
+    startAutoRefresh();
+    loadDevices();
   }catch(e){ el("loginErr").textContent = e.message; show("loginErr"); }
 }
 
 function logout(){
+  if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
   token = ""; role = ""; localStorage.removeItem("dm_token");
   hide("mainPanel"); hide("devicesPanel"); hide("logsPanel"); hide("auditPanel");
   show("loginPanel"); el("who").textContent = "Company-owned device fleet";
@@ -157,34 +156,44 @@ async function restore(id){
   try{ await api("/admin/devices/"+encodeURIComponent(id)+"/restore", {method:"POST", body:"{}"}); loadDevices(); }catch(e){ alert(e.message); }
 }
 
-function openLogs(id){ el("logDev").value = id; loadLogs(); }
+function openLogs(id){ loadLogs(id); }
 
-async function loadLogs(){
-  hide("logErr"); hide("logBody");
-  const id = el("logDev").value.trim();
-  if(!id){ el("logErr").textContent = "Enter a device ID"; show("logErr"); return; }
-  el("logList").innerHTML = "";
+async function loadLogs(id){
+  hide("logErr"); hide("logBody"); hide("logMeta");
+  if(!id){ return; }
+  el("logList").innerHTML = '<span class="dim">Loading ' + esc(id) + ' logs…</span>';
   try{
     const d = await api("/admin/devices/"+encodeURIComponent(id)+"/logs");
-    if(!d.logs || !d.logs.length){ el("logList").innerHTML = '<span class="dim">No logs uploaded for this device.</span>'; return; }
+    el("logList").innerHTML = "";
+    const h = document.createElement("strong");
+    h.textContent = "Logs for " + id;
+    el("logList").appendChild(h);
+    if(!d.logs || !d.logs.length){ el("logList").innerHTML += '<div class="dim" style="margin-top:6px">No logs uploaded for this device yet.</div>'; return; }
     d.logs.forEach(l => {
       const btn = document.createElement("button");
-      btn.className = "ghost"; btn.textContent = l.log_date + "  (" + l.size + " B)";
+      btn.className = "ghost"; btn.style.marginRight = "6px"; btn.style.marginTop = "6px";
+      btn.textContent = l.log_date + "  (" + l.size + " B)";
       btn.onclick = () => viewLog(id, l.log_date);
       el("logList").appendChild(btn);
     });
   }catch(e){ el("logErr").textContent = e.message; show("logErr"); }
 }
 
-// backend has no raw-content GET; show metadata for now (see note)
 async function viewLog(id, date){
-  el("logErr").classList.add("hidden");
+  hide("logErr"); hide("logMeta");
   try{
     const r = await fetch("/admin/devices/"+encodeURIComponent(id)+"/logs/"+date+"/content", {headers:{"Authorization":"Bearer "+token}});
     const txt = await r.text();
     if(!r.ok){ el("logErr").textContent = txt; show("logErr"); return; }
-    el("logBody").textContent = txt; show("logBody");
+    el("logMeta").textContent = "Device " + id + " · " + date + " · " + txt.length + " chars";
+    el("logBody").textContent = txt; show("logMeta"); show("logBody");
   }catch(e){ el("logErr").textContent = e.message; show("logErr"); }
+}
+
+let refreshTimer = null;
+function startAutoRefresh(){
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadDevices, 15000);
 }
 
 async function loadAudit(){
