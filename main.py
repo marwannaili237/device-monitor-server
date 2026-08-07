@@ -310,9 +310,13 @@ async def upload_log(log_date: str, log: UploadFile = File(...), device_id: str 
         if not dev:
             raise HTTPException(404, "enroll the device first")
         path = LOG_ROOT / f"{device_id}.{log_date}.log"
-        path.write_bytes(content)
-        conn.execute("INSERT INTO log_files(device_id,log_date,stored_path,checksum,size) VALUES(?,?,?,?,?)",
-                     (device_id, log_date, str(path), cs, len(content)))
+        try: path.write_bytes(content)
+        except Exception: pass
+        text = content.decode("utf-8", errors="replace")
+        conn.execute(
+            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content) VALUES(?,?,?,?,?,?) "
+            "ON CONFLICT(device_id,log_date) DO UPDATE SET checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path",
+            (device_id, log_date, str(path), cs, len(content), text))
     return {"receivedSha": cs, "size": len(content)}
 
 
@@ -411,14 +415,16 @@ def log_content(device_id: str, log_date: str, admin: dict = Depends(get_admin))
             dev = conn.execute("SELECT id FROM devices WHERE device_id=? AND site_id=?", (device_id, admin["site_id"])).fetchone()
         if not dev:
             raise HTTPException(404, "device not found")
-        row = conn.execute("SELECT stored_path FROM log_files WHERE device_id=? AND log_date=?",
+        row = conn.execute("SELECT stored_path,content FROM log_files WHERE device_id=? AND log_date=?",
                            (device_id, log_date)).fetchone()
     if not row:
         raise HTTPException(404, "no log for that date")
     p = Path(row["stored_path"])
-    if not p.exists():
-        raise HTTPException(404, "stored file missing on server")
-    return PlainTextResponse(p.read_text(errors="replace"))
+    if row["content"]:
+        return PlainTextResponse(row["content"])
+    if p.exists():
+        return PlainTextResponse(p.read_text(errors="replace"))
+    raise HTTPException(404, "stored file missing on server")
 
 
 @app.post("/admin/devices/{device_id}/revoke")
