@@ -393,11 +393,11 @@ def device_logs(device_id: str, admin: dict = Depends(get_admin)):
         if admin["role"] == "root":
             rows = conn.execute(
                 "SELECT d.device_id,l.log_date,l.size,l.checksum FROM log_files l "
-                "JOIN devices d ON d.id=l.device_id WHERE d.device_id=?", (device_id,)).fetchall()
+                "JOIN devices d ON d.device_id=l.device_id WHERE d.device_id=?", (device_id,)).fetchall()
         else:
             rows = conn.execute(
                 "SELECT d.device_id,l.log_date,l.size,l.checksum FROM log_files l "
-                "JOIN devices d ON d.id=l.device_id WHERE d.device_id=? AND d.site_id=?",
+                "JOIN devices d ON d.device_id=l.device_id WHERE d.device_id=? AND d.site_id=?",
                 (device_id, admin["site_id"])).fetchall()
     return {"logs": [dict(r) for r in rows]}
 
