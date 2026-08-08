@@ -734,7 +734,7 @@ function logLoad(){
   if(logTimer){ clearInterval(logTimer); logTimer = null; }
   const doLoad = async function(){
     try{
-      const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(logDayCur)+"/content", {headers:{"Authorization":"Bearer "+token}});
+      const r = await fetch("/admin/logs/"+encodeURIComponent(logDayCur)+"/merged", {headers:{"Authorization":"Bearer "+token}});
       if(!r.ok) return;
       const txt = await r.text();
       const lines = txt.split(/\r?\n/).filter(Boolean);
@@ -742,7 +742,7 @@ function logLoad(){
       box.innerHTML = ''
 
         + '<div class="card" style="padding:0;overflow:hidden">'
-        +   '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd)"><b>📄 '+esc(logDayCur)+'</b><span class="sm dim">'+lines.length+' lines</span><button class="btn btn-sm ghost" onclick="logDownloadDay()">⬇ Save</button></div>'
+        +   '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd)"><b>📄 Full day '+esc(logDayCur)+'</b><span class="sm dim">'+lines.length+' lines (all captures)</span><button class="btn btn-sm ghost" onclick="logDownloadDay()">⬇ Save</button></div>'
         +   '<div style="height:46vh;overflow-y:auto"><pre style="padding:10px 12px;font-size:12px;line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word">'+show.map(function(ln){ return kl(ln); }).join("\n")+'</pre></div>'
         + '</div>';
     }catch(e){ box.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
@@ -777,10 +777,10 @@ function kl(line){
 }
 
 async function logDownloadDay(){
-  const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(logDayCur)+"/content", {headers:{"Authorization":"Bearer "+token}});
+  const r = await fetch("/admin/logs/"+encodeURIComponent(logDayCur)+"/merged", {headers:{"Authorization":"Bearer "+token}});
   if(!r.ok) return;
   const blob = await r.blob();
-  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download = cur.slice(0,8)+"-"+logDayCur+".txt"; a.click();
+  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download = "fullday-"+logDayCur+".txt"; a.click();
 }
 
 async function loadDeviceLogsTab(d){ // d optional

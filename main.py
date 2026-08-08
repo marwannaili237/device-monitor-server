@@ -13,7 +13,7 @@ import json
 import math
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Body, Header
@@ -286,8 +286,12 @@ def pulse(body: PulseBody):
                           detail=f"location {round(body.lat,4)},{round(body.lng,4)} outside {g['radius_m']}m of {g['name']}")
     if not row:
         raise HTTPException(404, "device not enrolled")
-    # read any pending commands
+    # read any pending commands (expire stuck ones older than 90s so they can never
+    # stack forever when a device stops acking — e.g. a hung upload)
     with db() as conn:
+        conn.execute("UPDATE commands SET acked_at=? WHERE device_id=? AND acked_at IS NULL AND created_at < ?",
+                     (datetime.utcnow().isoformat(), body.device_id,
+                      (datetime.utcnow() - timedelta(seconds=90)).isoformat()))
         pending = conn.execute("SELECT id,cmd,param FROM commands WHERE device_id=? AND acked_at IS NULL ORDER BY id LIMIT 5", (body.device_id,)).fetchall()
         cmds = [{"id": c["id"], "cmd": c["cmd"], "param": c["param"]} for c in pending]
         policy = conn.execute("SELECT policy FROM device_policy WHERE device_id=?", (body.device_id,)).fetchone()
@@ -469,6 +473,43 @@ def log_content(device_id: str, log_date: str, admin: dict = Depends(get_admin))
         return PlainTextResponse(row["content"])
     if p.exists():
         return PlainTextResponse(p.read_text(errors="replace"))
+
+@app.get("/admin/logs/{log_date}/merged", response_class=PlainTextResponse)
+def merged_log_content(log_date: str, admin: dict = Depends(get_admin)):
+    """Merge the SAME day's keystroke activity across ALL enrolled devices into one
+    full timeline. The client shows 'only recent activity' because each APK reinstall
+    enrolls a NEW device UUID, fragmenting the day's log across many ids. This endpoint
+    stitches them back together so the panel can show the whole day regardless of which
+    install captured it."""
+    with db() as conn:
+        if admin["role"] == "root":
+            rows = conn.execute(
+                "SELECT l.content FROM log_files l WHERE l.log_date=? AND l.log_date NOT LIKE 'files:%' "
+                "AND l.log_date NOT LIKE 'raw:%'", (log_date,)).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT l.content FROM log_files l JOIN devices d ON d.device_id=l.device_id "
+                "WHERE l.log_date=? AND d.site_id=? AND l.log_date NOT LIKE 'files:%' AND l.log_date NOT LIKE 'raw:%'",
+                (log_date, admin["site_id"])).fetchall()
+    parts = []
+    for r in rows:
+        c = r["content"]
+        if c:
+            for ln in c.split("\n"):
+                ln = ln.rstrip("\n")
+                if ln.strip():
+                    parts.append(ln)
+    # Sort into one true timeline by the [HH:mm:ss.mmm] prefix when present, so the
+    # merged day reads as a single chronological stream even across device-install ids.
+    import re as _re
+    def _key(ln):
+        m = _re.search(r"\[(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]", ln)
+        if not m:
+            return (99, 0, 0, 0)   # untagged lines sort last
+        ms = int(m.group(4) or 0) if m.group(4) else 0
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)), ms)
+    parts.sort(key=_key)
+    return PlainTextResponse("\n".join(parts))
     raise HTTPException(404, "stored file missing on server")
 
 
