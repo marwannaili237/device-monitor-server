@@ -13,7 +13,7 @@ import json
 import math
 import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Body, Header
@@ -400,12 +400,25 @@ def admin_devlogin():
 
 @app.get("/admin/devices")
 def list_devices(admin=Depends(get_admin)):
+    import time as _t
     with db() as conn:
         if admin["role"] == "root":
             rows = conn.execute("SELECT * FROM devices ORDER BY id").fetchall()
         else:
             rows = conn.execute("SELECT * FROM devices WHERE site_id=? ORDER BY id", (admin["site_id"],)).fetchall()
-    return {"devices": [dict(r) for r in rows]}
+    out = []
+    for r in rows:
+        d = dict(r)
+        lst = d.get("last_seen_at")
+        try:
+            dt = datetime.fromisoformat(lst) if lst else None
+            if dt is not None and dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
+            st = dt.timestamp() if dt else 0
+        except Exception:
+            st = 0
+        d["online"] = bool(st and (_t.time() - st <= 120))
+        out.append(d)
+    return {"devices": out}
 
 
 @app.get("/admin/devices/{device_id}/logs")
@@ -831,20 +844,26 @@ def dashboard_metrics(admin: dict = Depends(get_admin)):
             parms = (site_id,)
         devices = conn.execute(f"SELECT * FROM devices {scope}".strip(), parms).fetchall()
         total = len(devices)
-        active = sum(1 for d in devices if d["status"] == "active")
-        revoked = total - active
-        offline = 0
+        active = 0
+        revoked = 0
+        offline_seconds = 120
+        for d in devices:
+            lst = d["last_seen_at"]
+            try:
+                dt = datetime.fromisoformat(lst) if lst else None
+                if dt is not None and dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
+                st = dt.timestamp() if dt else 0
+            except Exception:
+                st = 0
+            if d["status"] == "revoked":
+                revoked += 1
+            elif st and (time.time() - st <= offline_seconds):
+                active += 1
+        offline = max(0, total - active - revoked)
         low_battery = 0
         weighted_health = 0.0
         versions = {}
         for d in devices:
-            lst = d["last_seen_at"]
-            try:
-                st = datetime.fromisoformat(lst).timestamp()
-            except Exception:
-                st = 0
-            if time.time() - st > offline_after_s:
-                offline += 1
             bp = d["battery_pct"]
             if bp is not None and bp < 20:
                 low_battery += 1

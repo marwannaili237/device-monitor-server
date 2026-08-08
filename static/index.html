@@ -1,167 +1,233 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Device Monitor — Admin</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:#0b0d10;color:#e8eaed;min-height:100vh;display:flex}
-/* ---------- sidebar ---------- */
-#side{width:220px;min-width:220px;background:#111318;border-right:1px solid #22262e;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-#side .brand{padding:18px 16px;font-weight:700;font-size:15px;letter-spacing:.3px;border-bottom:1px solid #22262e;color:#fff}
-#side .brand span{color:#4f8cff}
-#side nav{flex:1;padding:10px 8px}
-#side .sec{font-size:10.5px;color:#5c6470;text-transform:uppercase;letter-spacing:1px;padding:14px 10px 6px}
-.sidebtn{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;color:#aab2bd;font-size:14px;padding:10px 12px;border-radius:8px;cursor:pointer;text-align:left;transition:.12s}
-.sidebtn:hover{background:#1a1e26;color:#fff}
-.sidebtn.on{background:#1d2733;color:#4f8cff;font-weight:600}
-.sidebtn .ic{width:20px;text-align:center;font-size:15px}
-#side .foot{padding:12px;border-top:1px solid #22262e;font-size:12px;color:#8890a0}
-#side .foot .dim{font-size:11px;color:#5c6470;margin-top:4px}
-/* ---------- main ---------- */
-#main{flex:1;min-width:0;padding:22px 26px;overflow-x:hidden}
-.hidden{display:none!important}
-h1{font-size:20px;font-weight:700;margin-bottom:4px}
-.sub{color:#8890a0;font-size:13px;margin-bottom:18px}
-.card{background:#13161c;border:1px solid #22262e;border-radius:12px;padding:16px;margin-bottom:14px}
-.card h3{font-size:13px;font-weight:600;margin-bottom:12px;color:#aab2bd}
-.row{display:flex;gap:12px;flex-wrap:wrap}
-.grow{flex:1;min-width:200px}
-.btn{display:inline-flex;align-items:center;gap:6px;background:#4f8cff;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:.12s;text-decoration:none}
-.btn:hover{background:#3f7ae6}
-.btn.green{background:#22a06b}.btn.green:hover{background:#1d8a5c}
-.btn.red{background:#e5484d}.btn.red:hover{background:#c93a3f}
-.btn.ghost{background:none;border:1px solid #333a45;color:#c3cbd6}
-.btn.ghost:hover{background:#1a1e26;color:#fff}
-.btn.sm{padding:6px 12px;font-size:12.5px;border-radius:7px}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;color:#8890a0;font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:8px 10px;border-bottom:1px solid #22262e;font-weight:600}
-td{padding:10px;border-bottom:1px solid #1a1e26;vertical-align:middle}
-tr:hover td{background:#151a21}
-.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600}
-.pill.on{background:#123f2c;color:#3ddc97}.pill.off{background:#3f2d12;color:#f2b544}
-.pill.rev{background:#3f1417;color:#ff6b70}.pill.ok{background:#123a40;color:#33c3e8}
-.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:10px}
-.kpi .box{background:#13161c;border:1px solid #22262e;border-radius:12px;padding:14px}
-.kpi .box .n{font-size:24px;font-weight:800;color:#fff}
-.kpi .box .l{font-size:11.5px;color:#8890a0;margin-top:2px}
-.kpi .box.red .n{color:#ff6b70}.kpi .box.green .n{color:#3ddc97}.kpi .box.blue .n{color:#4f8cff}
-/* device list buttons */
-.devicename{font-weight:600;cursor:pointer;color:#4f8cff}
-.devicename:hover{text-decoration:underline}
-/* file manager */
-.crumb{font-size:13px;font-family:ui-monospace,monospace}
-.frow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
-.frow:hover{background:#1a1e26;border-color:#2a2f3a}
-.frow .nm{flex:1;font-size:13.5px}
-.frow .meta{color:#77808f;font-size:12px;min-width:90px;text-align:right}
-.frow .act{display:flex;gap:6px}
-.frow .act .btn{padding:5px 10px;font-size:11.5px}
-.iconfolder{color:#e8b339}.iconfile{color:#7f8896}
-/* settings coming soon */
-.opt{background:#13161c;border:1px solid #22262e;border-radius:12px;padding:16px;color:#e8eaed;font-size:13px;text-align:left;cursor:pointer;transition:.12s;line-height:1.5}
-.opt:hover{border-color:#4f8cff;background:#1a1e26}
-.opt.on{border-color:#22a06b;background:#123f2c}
-.opt .big{display:block;font-size:20px;margin-bottom:6px}
-.opt .sm{font-size:11px}
-.soon{display:inline-block;background:#2a1f3d;color:#b48cff;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;letter-spacing:.5px}
-.pl{font-family:ui-monospace,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-all;max-height:380px;overflow:auto;background:#0a0c0f;border:1px solid #22262e;border-radius:8px;padding:12px}
-input[type=text],input[type=password]{background:#0e1116;border:1px solid #2a2f3a;color:#fff;border-radius:8px;padding:10px 12px;font-size:13.5px;width:100%}
-label{font-size:12.5px;color:#8890a0;display:block;margin-bottom:5px}
-.bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.bar .back{background:none;border:none;color:#8890a0;font-size:22px;cursor:pointer;padding:0 6px;line-height:1}
-.bar .back:hover{color:#fff}
-.tabs{display:flex;gap:4px;border-bottom:1px solid #22262e;margin-bottom:16px;overflow-x:auto}
-.tabs button{background:none;border:none;color:#8890a0;font-size:13.5px;padding:9px 14px;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent}
-.tabs button.on{color:#fff;border-bottom-color:#4f8cff;font-weight:600}
-.dim{color:#77808f;font-size:12px}
-.okmsg{background:#123f2a;color:#3ddc97;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px}
-.errmsg{background:#3d1417;color:#ff6b70;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px}
-@media(max-width:700px){
-  #side{width:54px}
-  #side .lbl,#side .foot{display:none}
-  #side .brand{font-size:0}
-  #side .brand:after{content:'DM';font-size:15px}
-  #main{padding:16px}
+:root{
+  --bg:#0a0c10; --bg2:#0f1218; --card:#141821; --card2:#181d28; --line:#232a38;
+  --txt:#e6e9ef; --mut:#8b93a3; --dim:#5d6575;
+  --acc:#5b8cff; --acc2:#7aa5ff; --ok:#2ed997; --warn:#ffb84d; --err:#ff5d6b; --purple:#a78bfa;
+  --r:14px;
 }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;color:#dfe4ec;font-size:14.5px;line-height:1.5}
 
-/* ---------- mobile: bottom nav instead of sidebar ---------- */
+/* ============ SIDEBAR (desktop) ============ */
+#side{width:230px;min-width:230px;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:20px 18px;font-weight:800;font-size:16px;letter-spacing:.2px;border-bottom:1px solid var(--line);color:#fff}
+.brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#5b8cff,#7aa5ff);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 14px rgba(91,140,255,.35)}
+.brand span{color:#7aa5ff}
+#side nav{flex:1;padding:12px 10px;overflow-y:auto}
+.sidebtn{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;color:var(--mut);font-size:14px;font-weight:500;padding:11px 13px;border-radius:10px;cursor:pointer;text-align:left;transition:.15s;margin-bottom:2px}
+.sidebtn:hover{background:var(--card);color:#fff}
+.sidebtn.on{background:linear-gradient(90deg,rgba(91,140,255,.16),rgba(91,140,255,.04));color:#8fb0ff;font-weight:600}
+.sidebtn .ic{width:22px;text-align:center;font-size:16px;opacity:.9}
+#side .foot{padding:14px 18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mut)}
+#side .foot .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px;box-shadow:0 0 8px rgba(45,217,151,.6)}
+#side .foot .dim{font-size:11px;color:var(--dim);margin-top:3px}
+
+/* ---------- MAIN ---------- */
+#main{flex:1;min-width:0;padding:26px clamp(14px,4vw,34px) 40px;overflow-x:hidden}
+.hidden{display:none!important}
+.pagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.pagehead h1{font-size:21px;font-weight:800;letter-spacing:-.3px;color:#fff}
+.pagehead .sub{color:var(--mut);font-size:13px;margin-top:2px}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ---------- KPI cards ---------- */
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;position:relative;overflow:hidden}
+.kpi .box::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#5b8cff,transparent);opacity:.7}
+.kpi .box.g::before{background:linear-gradient(90deg,var(--ok),transparent)}
+.kpi .box.r::before{background:linear-gradient(90deg,var(--err),transparent)}
+.kpi .box .n{font-size:25px;font-weight:800;color:#fff;letter-spacing:-.5px}
+.kpi .box.r .n{color:var(--err)}
+.kpi .box.g .n{color:var(--ok)}
+.kpi .box .l{font-size:11.5px;color:var(--mut);margin-top:3px;text-transform:uppercase;letter-spacing:.7px}
+.kpi .box .hl{position:absolute;top:14px;right:14px;font-size:12px}
+
+/* ---------- cards/tables ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h3{font-size:12.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid rgba(35,43,58,.6);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--bg2)}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:20px;font-size:11.5px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.pill:before{content:"";width:6px;height:6px;border-radius:50%}
+.pill.on{background:rgba(45,217,151,.12);color:var(--ok)}
+.pill.on:before{background:var(--ok);box-shadow:0 0 8px rgba(45,217,151,.8)}
+.pill.off{background:rgba(255,184,77,.1);color:var(--warn)}
+.pill.off:before{background:var(--warn)}
+.pill.rev{background:rgba(255,93,107,.12);color:var(--err)}
+.pill.rev:before{background:var(--err)}
+.pill.info{background:rgba(91,140,255,.12);color:#9ec0ff}
+.pill.info:before{background:#9ec0ff}
+.pill.purple{background:rgba(167,139,250,.14);color:var(--purple)}
+.pill.purple:before{background:var(--purple)}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;background:#3d5ff0;color:#fff;border:none;padding:9px 16px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.14s;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#3455e7;transform:translateY(-1px)}
+.btn:active{transform:none}
+.btn .bic{font-size:14px}
+.btn.green{background:#17a46f}
+.btn.green:hover{background:#13945f}
+.btn.red{background:#e3414f}
+.btn.red:hover{background:#d33a48}
+.btn.ghost{background:none;border:1px solid var(--line);color:#b7bfcc}
+.btn.ghost:hover{background:var(--card2);color:#fff;transform:none}
+.btn.sm{padding:6px 11px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.full{width:100%;justify-content:center}
+
+/* ---------- device rows (cards) ---------- */
+.devicename{font-weight:650;cursor:pointer;color:#cfe0ff;font-size:14.5px}
+.devicename:hover{color:#fff;text-decoration:underline}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.dim{color:var(--dim)}
+.mut{color:var(--mut)}
+.errmsg{background:rgba(255,93,107,.1);border:1px solid rgba(255,93,107,.3);color:#ff9aa3;padding:10px 14px;border-radius:10px;font-size:13px;margin:6px 0}
+.okmsg{background:rgba(45,217,151,.08);border:1px solid rgba(45,217,151,.25);color:var(--ok);padding:10px 14px;border-radius:10px;font-size:13px;margin:6px 0}
+
+/* ---------- device detail ---------- */
+.backbtn{background:none;border:1px solid var(--line);color:#c7cfdc;width:34px;height:34px;border-radius:10px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.backbtn:hover{background:var(--card2);color:#fff}
+.tabs{display:flex;gap:4px;margin:14px 0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{background:none;border:none;color:var(--mut);font-size:13.5px;font-weight:600;padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.13s}
+.tabs button.on{color:#fff;border-bottom-color:var(--accent,#5b8cff)}
+
+/* log viewer */
+.pl{background:#0c0f14;border:1px solid var(--line);border-radius:10px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.65;color:#b9c4d4;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:56vh;overflow-y:auto}
+.logrow{display:flex;gap:8px;padding:5px 8px;border-radius:6px;font-size:12.5px;font-family:ui-monospace,monospace;color:#b9c4d4;border-bottom:1px solid rgba(35,43,58,.4)}
+.logrow:hover{background:var(--bg2)}
+.logrow .t{color:var(--accent2,#7aa5ff);min-width:66px}
+.logrow .ev{color:var(--purple);min-width:9ch;font-weight:700}
+.logrow .pkg{color:var(--warn)}
+
+/* ---------- file rows ---------- */
+.crumb{font-size:12.5px;font-family:ui-monospace,monospace;color:#9db2d6;background:var(--bg2);border:1px solid var(--line);padding:8px 12px;border-radius:9px;flex:1;overflow-x:auto;white-space:nowrap}
+.frow{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:.12s}
+.frow:hover{background:var(--bg2);border-color:var(--line)}
+.frow .fic{font-size:16px;width:22px;text-align:center}
+.frow .nm{flex:1;font-size:13.5px;font-weight:500;color:#dfe4ec;cursor:pointer}
+.frow .meta{color:var(--dim);font-size:12px;min-width:80px;text-align:right}
+.frow .act{display:flex;gap:6px}
+
+/* settings opts */
+.opt{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;text-align:left;font-size:14px;font-weight:650;color:#e8edf5;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:6px}
+.opt:hover{border-color:#3a4acy;background:var(--card2)}
+.opt.on{border-color:rgba(45,217,151,.5);background:rgba(45,217,151,.06)}
+.opt .obig{font-size:22px}
+.opt .osub{font-size:12.5px;color:var(--dim);font-weight:400}
+
+/* ---------- login ---------- */
+#loginBox{background:var(--bg);width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:360px}
+.login-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#5b8cff,#7aa5ff);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px;box-shadow:0 10px 30px rgba(91,140,255,.4)}
+.login-card h1{text-align:center;font-size:21px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.login-card .sg{text-align:center;color:var(--dim);font-size:13px;margin:4px 0 24px}
+.login-card input{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--bg2);color:#fff;font-size:14px;outline:none;transition:.15s}
+.login-card input:focus{border-color:var(--accent,#5b8cff);box-shadow:0 0 0 3px rgba(91,140,255,.15)}
+
+/* ---------- settings grid ---------- */
+.optgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+
+/* ---------- bottom nav (mobile) ---------- */
 #bottomnav{display:none}
-@media(max-width:700px){
-  body{display:block}
+@media(max-width:760px){
+  body{flex-direction:column}
   #side{display:none}
-  #main{width:100%;padding:12px 12px 76px}
-  .card, table{width:100%}
-  .frow{flex-wrap:wrap}
-  .frow .nm{max-width:100%;flex:1 1 100%;padding:8px 0}
-  .frow .act{width:100%;justify-content:flex-end}
-  #bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:#101318;border-top:1px solid #22262e;z-index:50}
-  #sec-device ~ #bottomnav, body:has(#sec-device:not(.hidden)) #bottomnav{display:none}
-  #bottomnav button{flex:1;background:none;border:none;color:#8a93a0;font-size:10px;padding:8px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+  #main{padding:14px 12px 78px;width:100%}
+  .kpi{grid-template-columns:repeat(2,1fr);gap:9px}
+  .kpi .box{padding:12px}
+  .kpi .box .n{font-size:21px}
+  .bar{width:100%}
+  #bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:rgba(15,18,24,.97);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:60;padding-bottom:env(safe-area-inset-bottom)}
+  #bottomnav button{flex:1;background:none;border:none;color:var(--dim);font-size:9.5px;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;letter-spacing:.2px}
   #bottomnav button .ic{font-size:20px;line-height:1}
-  #bottomnav button.on{color:#fff}
-  #bottomnav button.on .ic{filter:drop-shadow(0 0 6px rgba(79,140,255,.6))}
-  #sec-device .back{width:100%;margin-bottom:8px}
-  #devTabs{overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;gap:6px;padding-bottom:6px}
-  #devTabs button{white-space:nowrap}
-  h1{font-size:22px}
-  .kpi{grid-template-columns:1fr 1fr}
+  #bottomnav button.on{color:var(--acc2,#7aa5ff)}
+  #bottomnav button.on .ic{filter:drop-shadow(0 0 8px rgba(91,140,255,.5))}
+  #bottomnav button .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);position:absolute;top:6px;margin-left:14px}
+  .pagehead{margin-bottom:14px}
+  table{font-size:13px}
+}
+@media(max-width:560px){
+  /* responsive table → cards for device list */
+  .devtab thead{display:none}
+  .devtab, .devtab tbody, .devtab tr, .devtab td{display:block;width:100%}
+  .devtab tr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .devtab td{border:none;padding:4px 0}
+  .devtab tr:hover{background:var(--card)}
+  .devname-row td{font-size:15px}
 }
 </style>
 </head><body>
 
-<!-- login overlay -->
-<div id="loginBox" class="hidden">
-  <div style="max-width:340px;margin:0 auto;padding:60px 20px;text-align:center">
-    <div style="font-size:26px;font-weight:800;margin-bottom:6px">DEVICE<span style="color:#4f8cff">MONITOR</span></div>
-    <div class="dim" style="margin-bottom:22px">Admin console</div>
+<!-- login -->
+<div id="loginBox" class="login-wrap hidden">
+  <div class="login-card">
+    <div class="login-logo">🛡</div>
+    <h1>Device<span>Monitor</span></h1>
+    <div class="sg">Admin console</div>
     <div class="card">
-      <input type="password" id="pw" placeholder="Admin password" style="width:100%;padding:12px;border-radius:8px;border:1px solid #22262e;background:#0b0d10;color:#e8eaed;box-sizing:border-box">
-      <button id="loginBtn" class="btn" style="width:100%;margin-top:10px" onclick="doLogin()">Sign in</button>
+      <input type="password" id="pw" placeholder="Admin password" autocomplete="current-password">
+      <button class="btn full" style="margin-top:10px" id="loginBtn" onclick="doLogin()">Sign in</button>
       <div id="loginErr" class="hidden errmsg"></div>
     </div>
   </div>
 </div>
 
+<!-- sidebar -->
 <div id="side">
-  <div class="brand">DEVICE<span>MONITOR</span></div>
+  <div class="brand"><div class="logo">🛡</div>Device<span>Monitor</span></div>
   <nav>
-    <div class="sidebtn" data-s="overview" onclick="go('overview')"><span class="ic">▦</span><span class="lbl">Overview</span></div>
-    <div class="sidebtn" data-s="devices" onclick="go('devices')"><span class="ic">📱</span><span class="lbl">Devices</span></div>
-    <div class="sidebtn" data-s="apps" onclick="go('apps')"><span class="ic">🧩</span><span class="lbl">Apps</span></div>
-    <div class="sidebtn" data-s="audit" onclick="go('audit')"><span class="ic">📜</span><span class="lbl">Audit Log</span></div>
-    <div class="sidebtn" data-s="settings" onclick="go('settings')"><span class="ic">⚙️</span><span class="lbl">Settings</span></div>
+    <div class="sidebtn" data-s="overview" onclick="go('overview')"><span class="ic">▦</span><span>Overview</span></div>
+    <div class="sidebtn" data-s="devices" onclick="go('devices')"><span class="ic">📱</span><span>Devices</span></div>
+    <div class="sidebtn" data-s="audit" onclick="go('audit')"><span class="ic">📜</span><span>Audit Log</span></div>
+    <div class="sidebtn" data-s="settings" onclick="go('settings')"><span class="ic">⚙️</span><span>Settings</span></div>
   </nav>
-  <div class="foot" id="whoBox"><span id="who"></span><div class="d">Device Monitor console</div></div>
+  <div class="foot"><span class="dot"></span><span id="who"></span><div class="dim">Device Monitor console</div></div>
 </div>
 
 <div id="main">
 
-  <!-- ==================== OVERVIEW ==================== -->
+  <!-- ================= OVERVIEW ================= -->
   <div id="sec-overview">
-    <h1>Overview</h1>
-    <div class="sub">All devices at a glance</div>
+    <div class="pagehead"><div><h1>Overview</h1><div class="sub">All devices at a glance</div></div>
+      <button class="btn ghost sm" onclick="loadOverview()">↻ Refresh</button></div>
     <div class="kpi" id="kpis"></div>
     <div class="card"><h3>Recent activity</h3><div id="ovRecent" class="dim">Loading…</div></div>
+    <div class="card"><h3>⚑ Live devices</h3><div id="ovLive" class="dim">Loading…</div></div>
   </div>
 
-  <!-- ==================== DEVICES LIST ==================== -->
+  <!-- ================= DEVICES ================= -->
   <div id="sec-devices" class="hidden">
-    <div class="bar"><h1 style="flex:1">Devices</h1><button class="btn grey sm" onclick="loadDevices()">↻ Refresh</button></div>
-    <div class="sub" id="devSub"></div>
+    <div class="pagehead"><div><h1>Devices</h1><div class="sub" id="devSub">…</div></div>
+      <div class="bar"><button class="btn ghost sm" onclick="showAllDevices=!showAllDevices;loadDevices()" id="btnToggleAll">Show all</button>
+      <button class="btn sm" onclick="loadDevices()">↻ Refresh</button></div></div>
     <div id="devList"></div>
   </div>
 
-  <!-- ==================== DEVICE DETAIL ==================== -->
+  <!-- ================= DEVICE DETAIL ================= -->
   <div id="sec-device" class="hidden">
-    <div class="bar">
-      <button class="back" onclick="go('devices')" title="Back to devices">‹</button>
-      <div style="flex:1"><h1 id="dTitle">Device</h1><div class="sub" id="dStatusLine"></div></div>
-      <button class="btn grey" onclick="sendAction('sync','Force contact')">⟳ Force check-in</button>
-      <button class="btn" onclick="sendAction('beeper','Beep')">🔔 Beep</button>
-      <button class="btn red" onclick="sendAction('lock','Lock')">🔒 Lock</button>
-      <button class="btn red" onclick="confirmWipe()">🗑 Wipe</button>
+    <div class="pagehead">
+      <div class="bar">
+        <button class="backbtn" onclick="go('devices')" title="Back">‹</button>
+        <div style="margin-left:8px"><h1 id="dTitle">Device</h1><div class="sub" id="dStatusLine"></div></div>
+      </div>
+      <div class="bar">
+        <button class="btn ghost sm" onclick="sendAction('sync','Force check-in')">⟳</button>
+        <button class="btn sm" onclick="sendAction('beeper','Beep')">🔔 Beep</button>
+        <button class="btn sm" onclick="sendAction('lock','Lock')">🔒 Lock</button>
+        <button class="btn red sm" onclick="confirmWipe()">🗑 Wipe</button>
+      </div>
     </div>
     <div id="dMsg"></div>
     <div class="tabs" id="devTabs">
@@ -169,42 +235,31 @@ label{font-size:12.5px;color:#8890a0;display:block;margin-bottom:5px}
       <button data-t="1" onclick="devTab('1')">Files</button>
       <button data-t="2" onclick="devTab('2')">Apps</button>
       <button data-t="3" onclick="devTab('3')">Activity</button>
-      <button data-t="4" onclick="devTab('4')">Location</button>
+      <button data-t="4" onclick="devTab('4')">Map</button>
       <button data-t="5" onclick="devTab('5')">Audit</button>
     </div>
     <div id="dBody"></div>
   </div>
 
-  <!-- ==================== APPS GLOBAL ==================== -->
-  <div id="sec-apps" class="hidden">
-    <h1>Apps</h1>
-    <div class="sub">Installed apps reported by devices</div>
-    <div class="card"><div id="appsBody" class="dim">Select a device from Devices to manage its apps.</div></div>
-  </div>
-
-  <!-- ==================== AUDIT ==================== -->
+  <!-- ================= AUDIT ================= -->
   <div id="sec-audit" class="hidden">
-    <h1>Audit Log</h1>
-    <div class="sub">Every action ever taken</div>
+    <div class="pagehead"><div><h1>Audit Log</h1><div class="sub">Every action ever taken</div></div>
+      <button class="btn ghost sm" onclick="loadAudit()">↻ Refresh</button></div>
     <div class="card"><div id="audBody" class="dim">Loading…</div></div>
   </div>
 
-  <!-- ==================== SETTINGS ==================== -->
+  <!-- ================= SETTINGS ================= -->
   <div id="sec-settings" class="hidden">
-    <h1>Settings</h1>
-    <div class="sub">Everything is a button, nothing is a command.</div>
-    <div class="card"><h3>Work hours gating</h3><div id="whForm"></div></div>
-    <div class="card"><h3>Monitor profile</h3><div id="profForm"></div></div>
-    <div class="card"><h3>Coming soon <span class="soon">soon</span></h3><div id="soonList"></div></div>
+    <div class="pagehead"><div><h1>Settings</h1><div class="sub">Device-wide behavior</div></div></div>
+    <div class="card" id="whForm"></div>
   </div>
 
 </div>
 
-<!-- mobile bottom nav -->
+<!-- bottom nav -->
 <nav id="bottomnav">
-  <button class="on" data-s="overview" onclick="go('overview')"><span class="ic">▦</span>Overview</button>
+  <button data-s="overview" onclick="go('overview')"><span class="ic">▦</span>Overview</button>
   <button data-s="devices" onclick="go('devices')"><span class="ic">📱</span>Devices</button>
-  <button data-s="apps" onclick="go('apps')"><span class="ic">🧩</span>Apps</button>
   <button data-s="audit" onclick="go('audit')"><span class="ic">📜</span>Audit</button>
   <button data-s="settings" onclick="go('settings')"><span class="ic">⚙️</span>Settings</button>
 </nav>
@@ -212,11 +267,11 @@ label{font-size:12.5px;color:#8890a0;display:block;margin-bottom:5px}
 <script>
 var token = localStorage.getItem("dm_token") || "";
 var cur = null, curTab = "0";
-var DEV_BYPASS = true; // auto-login via /admin/devlogin when the server has DEV_MODE=1
+var DEV_BYPASS = true;
+var showAllDevices = false;
 
 function el(i){ return document.getElementById(i); }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-
 async function api(path, opts){
   opts = opts || {};
   if(opts.body && !(opts.headers && opts.headers["Content-Type"])) opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
@@ -238,21 +293,11 @@ async function api(path, opts){
 async function init(){
   if(DEV_BYPASS && !token){ tryDevAutoLogin(); return; }
   if(!token){ showLogin(); return; }
-  try{ const me = await api("/admin/me"); el("who").textContent = "root ("+(me.role||"admin")+")"; hideLogin(); buildAll(); }
+  try{ const me = await api("/admin/me"); el("who").textContent = (me.role||"admin"); hideLogin(); buildAll(); }
   catch(e){ showLogin(); }
 }
-function showLogin(){
-  document.getElementById('loginBox')?.classList.remove('hidden');
-  document.getElementById('side')?.classList.add('hidden');
-  document.getElementById('bottomnav')?.classList.add('hidden');
-  document.body.style.display="block";
-}
-function hideLogin(){
-  document.getElementById('loginBox')?.classList.add('hidden');
-  document.getElementById('side')?.classList.remove('hidden');
-  document.getElementById('bottomnav')?.classList.remove('hidden');
-  document.body.style.padding="0";
-}
+function showLogin(){ el("loginBox").classList.remove("hidden"); el("side").classList.add("hidden"); el("bottomnav").classList.add("hidden"); }
+function hideLogin(){ el("loginBox").classList.add("hidden"); el("side").classList.remove("hidden"); el("bottomnav").classList.remove("hidden"); }
 function doLogin(){
   const b = el("loginBtn"); b.disabled=true; b.textContent="Signing in…";
   fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pw:el("pw").value})})
@@ -260,82 +305,95 @@ function doLogin(){
     if(!d.token) throw new Error(d.detail||"login failed");
     token = d.token; localStorage.setItem("dm_token", token);
     el("who").textContent = "root ("+(d.role||"admin")+")";
-    hideLogin();
-    buildAll();
-  }).catch(e=>{ const er=el("loginErr"); er.classList.remove("hidden"); er.textContent = e.message; });
+    hideLogin(); buildAll();
+  }).catch(e=>{ const er=el("loginErr"); er.classList.remove("hidden"); er.textContent = e.message; b.disabled=false; b.textContent="Sign in"; });
 }
-
-/* DEV_MODE convenience: skip the login page if the server allows it */
 function tryDevAutoLogin(){
   fetch("/admin/devlogin").then(r=>r.json()).then(d=>{
     if(d && d.token){
       token = d.token; localStorage.setItem("dm_token", token);
-      el("who").textContent = "root ("+(d.role||"admin")+") (dev auto-login)";
-      hideLogin();
-      buildAll();
-    } else { showLogin(); }
-  }).catch(()=>{ showLogin(); });
+      el("who").textContent = "root ("+(d.role||"admin")+") (dev)";
+      hideLogin(); buildAll();
+    } else showLogin();
+  }).catch(()=> showLogin());
 }
-
 function go(name){
-  document.querySelectorAll('.sidebtn').forEach(b=>b.classList.toggle('on', b.dataset.s===name));
-  document.querySelectorAll('#bottomnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===name));
-  if(name==="device" && cur) name="devices"; // detail is not a sidebar section
-  ["overview","devices","device","apps","audit","settings"].forEach(s=>{
-    el("sec-"+s).classList.toggle("hidden", s!==name);
-  });
+  document.querySelectorAll('.sidebtn, #bottomnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===name));
+  if(name==="device" && cur) name="devices";
+  ["overview","devices","device","audit","settings"].forEach(s=>el("sec-"+s).classList.toggle("hidden", s!==name));
   el("bottomnav").style.display = (name==="device") ? "none" : "";
-  el("main").style.paddingBottom = (name==="device") ? "16px" : "";
   if(name==="overview") loadOverview();
   if(name==="devices") loadDevices();
-  if(name==="apps") loadGlobalApps();
   if(name==="audit") loadAudit();
   if(name==="settings") loadSettings();
+  window.scrollTo(0,0);
 }
 function buildAll(){ go("overview"); }
 
 /* ---------- overview ---------- */
+function kpiRow(x){
+  return '<div class="box '+(x.c||"")+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>';
+}
+function kpiCard(x){
+  return '<div class="box '+(x.c||"")+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>';
+}
 async function loadOverview(){
   try{
     const m = await api("/admin/metrics");
     const k = [
-      {n:m.total!=null?m.total:0,l:"Total devices",c:m.total?"":"blue"},
-      {n:m.active!=null?m.active:0,l:"Active now",c:m.active?"green":""},
-      {n:m.offline!=null?m.offline:0,l:"Offline"},
-      {n:m.revoked!=null?m.revoked:0,l:"Revoked",c:m.revoked?"red":""},
-      {n:m.low_battery!=null?m.low_battery:0,l:"Low battery",c:m.low_battery?"red":""},
+      {n:m.total!=null?m.total:0,l:"Total", c:"b"},
+      {n:m.active!=null?m.active:0,l:"Active now", c:m.active?"g":""},
+      {n:m.offline!=null?m.offline:0,l:"Offline", c:m.offline?"w":""},
+      {n:m.revoked!=null?m.revoked:0,l:"Revoked", c:m.revoked?"r":""},
+      {n:m.low_battery!=null?m.low_battery:0,l:"Low battery", c:m.low_battery?"r":""},
       {n:(m.avg_health||0).toFixed(1),l:"Avg health %"},
-      {n:(typeof m.storage_free_l==="number"?m.storage_free_l.toFixed(1)+" GB":String(m.storage_free_l||"—")),l:"Storage free"},
+      {n:(m.storage_free_l!=null?Math.round(m.storage_free_l)+" GB":"—"), l:"Storage free"},
     ];
-    el("kpis").innerHTML = k.map(x=>'<div class="box '+x.c+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>').join("");
-    const rec = (m.recent_audit||[]).slice(0,8);
+    el("kpis").innerHTML = k.map(kpiCard).join("");
+    const rec = (m.recent_audit||[]).slice(0,10);
     el("ovRecent").innerHTML = rec.length
-      ? '<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Device</th><th>Result</th></tr></thead><tbody>'+rec.map(a=>'<tr><td class="dim">'+esc((a.ts||"").slice(5,19).replace("T"," "))+'</td><td>'+esc(a.actor)+'</td><td>'+esc(a.action.replace("command:",""))+'</td><td class="dim">'+esc((a.device_id||"").slice(0,8))+'</td><td>'+esc(a.result||"—")+'</td></tr>').join('')+'</tbody></table>'
-      : 'No activity yet.';
+      ? '<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Device</th><th>Result</th></tr></thead><tbody>'
+        + rec.map(a=>'<tr><td class="dim">'+esc((a.ts||"").slice(5,16))+'</td><td>'+esc(a.actor)+'</td><td>'+esc(a.action.replace("command:",""))+'</td><td class="dim mono">'+esc((a.device_id||"").slice(0,8))+'</td><td>'+esc(a.result||"—")+'</td></tr>').join('')
+        + '</tbody></table>'
+      : '<div class="dim">No activity yet.</div>';
+    const d = await api("/admin/devices");
+    const all = d.devices||d;
+    const act = (all||[]).filter(x=>x.online);
+    el("ovLive").innerHTML = act.length
+      ? '<table class="devtab"><thead><tr><th>Device</th><th>Status</th><th>Battery</th><th>Last seen</th></tr></thead><tbody>'
+        + act.map(x=>'<tr style="cursor:pointer" onclick="openDevice(\''+esc(x.device_id)+'\')"><td><span class="devicename">'+esc(x.label||x.model||x.os_version||x.device_id.slice(0,8))+'</span><div class="dim" style="font-size:11px">'+esc(x.model||"")+' · '+esc(x.device_id.slice(0,8))+'</div></td>'
+          + '<td><span class="pill on">LIVE</span></td>'
+          + '<td>'+(x.battery_pct!=null?x.battery_pct+"%"+(x.charging?" ⚡":""):"—")+'</td>'
+          + '<td class="dim">'+esc((x.last_seen_at||"").slice(5,19))+'</td></tr>').join('')
+        + '</tbody></table>'
+      : '<div class="dim">No live devices right now.</div>';
   }catch(e){ el("kpis").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
 /* ---------- devices ---------- */
-var showAllDevices = false;
 async function loadDevices(){
   el("devSub").textContent = "Loading…";
   try{
     const d = await api("/admin/devices");
     var all = d.devices||d;
-    var active = (all||[]).filter(function(x){ return x.status==="active"; });
+    var active = (all||[]).filter(function(x){ return x.online; });
     var list = showAllDevices ? all : active;
-    el("devSub").innerHTML = list.length+" device"+(list.length===1?"":"s")
-      + (showAllDevices ? " · <b style='color:#f2b544'>"+all.length+" total</b> · <a href='#' onclick='showAllDevices=false;loadDevices();return false' style='color:#4f8cff'>show only live</a>" : " · <b style='color:#3ddc97'>"+active.length+" live</b> · <a href='#' onclick='showAllDevices=true;loadDevices();return false' style='color:#4f8cff'>show all "+all.length+"</a>");
-    el("devList").innerHTML = '<div class="card"><table><thead><tr><th>Device</th><th>Status</th><th>Battery</th><th>Last seen</th><th></th></tr></thead><tbody>'
+    el("devSub").textContent = (list.length||0)+" device"+(list.length===1?"":"s")
+      + (showAllDevices ? " shown (all)" : " shown (live only) · "+active.length+" live");
+    el("btnToggleAll").textContent = showAllDevices ? "Show live only" : "Show all "+all.length;
+    el("devList").innerHTML = '<table class="devtab"><thead><tr><th>Device</th><th>Status</th><th>Battery</th><th>Last seen</th><th></th></tr></thead><tbody>'
       + list.map(x=>{
           const st = x.status;
-          const pill = st==="active"?'<span class="pill on">● ACTIVE</span>':st==="revoked"?'<span class="pill rev">● REVOKED</span>':'<span class="pill off">○ OFFLINE</span>';
-          const bat = x.battery_pct!=null ? x.battery_pct+"%" + (x.charging?" ⚡":"") : "—";
-          return '<tr><td><span class="devicename" onclick="openDevice(\''+esc(x.device_id)+'\')">'+esc(x.label||x.os_version||x.device_id.slice(0,8))+'</span><div class="dim" style="font-size:11px">'+esc(x.model||"unknown model")+' · '+esc(x.device_id.slice(0,8))+'…</div></td>'
-            + '<td>'+pill+'</td><td>'+bat+'</td>'
-            + '<td class="dim">'+esc((x.last_seen_at||"").slice(5,19).replace("T"," "))+'</td>'
-            + '<td><button class="btn sm" onclick="openDevice(\''+esc(x.device_id)+'\')">Open →</button></td></tr>';
-        }).join('')+'</tbody></table></div>';
+          const pill = x.online?'<span class="pill on">● LIVE</span>':st==="revoked"?'<span class="pill rev">● REVOKED</span>':'<span class="pill off">○ OFFLINE</span>';
+          const id8 = String(x.device_id||"").slice(0,8);
+          const name = x.label||x.model||x.os_version||id8;
+          return '<tr style="cursor:pointer" onclick="openDevice(\''+esc(x.device_id)+'\')">'
+            + '<td><div class="devicename">'+esc(name)+'</div><div class="dim" style="font-size:11px">'+esc(x.model||"unknown model")+' · <span class="mono">'+esc(id8)+'…</span></div></td>'
+            + '<td>'+pill+'</td><td>'+(x.battery_pct!=null?x.battery_pct+"%"+(x.charging?" ⚡":""):"—")+'</td>'
+            + '<td class="dim">'+esc((x.last_seen_at||"").slice(5,19))+'</td>'
+            + '<td style="text-align:right"><button class="btn sm" onclick="event.stopPropagation();openDevice(\''+esc(x.device_id)+'\')">Open →</button></td></tr>';
+        }).join('')+'</tbody></table>'
+      + (list.length===0 ? '<div class="card dim" style="text-align:center;padding:30px">No '+(showAllDevices?'devices':'live devices')+' right now.</div>' : '');
   }catch(e){ el("devList").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
@@ -343,82 +401,77 @@ function openDevice(id){
   cur = id;
   ["overview","devices"].forEach(s=>el("sec-"+s).classList.add("hidden"));
   el("sec-device").classList.remove("hidden");
+  el("bottomnav").style.display = "none";
   el("devTabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.t==="0"));
-  el("dTitle").textContent = "Device "+id.slice(0,8);
   loadDeviceDetail(id, "0");
+  window.scrollTo(0,0);
 }
 
 async function loadDeviceDetail(id, tab){
-  el("dBody").innerHTML = '<div class="dim">Loading…</div>';
+  el("dBody").innerHTML = '<div class="dim" style="padding:20px;text-align:center">Loading…</div>';
   try{
     const d = await api("/admin/devices/"+encodeURIComponent(id)+"/detail");
-    el("dTitle").textContent = esc(d.label||d.os_version||id.slice(0,8));
-    el("dStatusLine").textContent = (d.model||"") + " · Android " + (d.os_version||"") + " · " + (d.status||"") + (d.battery_pct!=null ? " · 🔋 "+d.battery_pct+"%" : "");
+    el("dTitle").textContent = esc(d.label||d.model||d.os_version||id.slice(0,8));
+    el("dStatusLine").textContent = (d.model||"") + " · Android " + (d.os_version||"") + " · " + (d.status||"");
     renderDeviceTab(d, tab);
   }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
-
-function setTab(dir){ }
+function devTab(t){
+  ["0","1","2","3","4","5"].forEach(x=>el("devTabs").querySelector('button[data-t="'+x+'"]').classList.toggle("on", x===t));
+  if(t==="0") loadDeviceDetail(cur,"0");
+  else if(t==="1") loadDeviceFilesView();
+  else if(t==="2") loadDeviceAppsFromServer();
+  else if(t==="3") loadDeviceLogsTab();
+  else if(t==="4") loadDeviceMapTab();
+  else if(t==="5") loadDeviceAuditTab();
+  window.scrollTo(0,0);
+}
 async function renderDeviceTab(d,t){
-  el("dBody").innerHTML='';
-  if(t==="0"){ el("dBody").innerHTML = infoHtml(d); }
-  else if(t==="1"){ loadDeviceFilesView(); }
-  else if(t==="2"){ loadDeviceAppsView(d); }
-  else if(t==="3"){ loadDeviceLogsTab(d); }
-  else if(t==="4"){ loadDeviceMapTab(); }
-  else if(t==="5"){ loadDeviceAuditTab(); }
+  el("dBody").innerHTML = '';
+  if(t==="0") el("dBody").innerHTML = infoHtml(d);
+  else if(t==="1") loadDeviceFilesView();
+  else if(t==="2") loadDeviceAppsView(d);
+  else if(t==="3") loadDeviceLogsTab(d);
+  else if(t==="4") loadDeviceMapTab();
+  else if(t==="5") loadDeviceAuditTab();
 }
 function infoHtml(d){
-  const stor = d.storage_total ? (d.storage_free/1024).toFixed(1)+"GB free of "+(d.storage_total/1024).toFixed(1)+"GB" : "—";
+  const stor = d.storage_total ? fmtSize(d.storage_free)+" free of "+fmtSize(d.storage_total) : "—";
   const fl = [];
-  if(d.rooted) fl.push('rooted'); if(d.unknown_sources) fl.push('unknown sources'); if(d.unlocked_boot) fl.push('bootloader unlocked');
+  if(d.rooted) fl.push(['rooted','r']); if(d.unknown_sources) fl.push(['unknown sources','w']); if(d.unlocked_boot) fl.push(['bootloader unlocked','w']);
   return '<div class="card"><h3>Identity</h3><table>'
-    + '<tr><td>Label</td><td>'+esc(d.label||"—")+'</td></tr>'
-    + '<tr><td>Device serial</td><td class="mono">'+esc(d.device_id)+'</td></tr>'
-    + '<tr><td>Model</td><td>'+esc(d.model||"—")+'</td></tr>'
-    + '<tr><td>OS</td><td>Android '+esc(d.os_version||"—")+' (SDK '+esc(d.sdk||"—")+')</td></tr>'
-    + '<tr><td>Manufacturer</td><td>'+esc(d.manufacturer||"—")+'</td></tr>'
-    + '<tr><td>Security patch</td><td>'+esc(d.security_patch||"—")+'</td></tr>'
+    + row('Label', d.label||"—") + row('Serial', d.device_id, 'mono')
+    + row('Model', d.model||"—") + row('OS','Android '+(d.os_version||"—")+' (SDK '+(d.sdk||"—")+')')
+    + row('Manufacturer', d.manufacturer||"—") + row('Security patch', d.security_patch||"—")
+    + row('Enrolled', (d.enrolled_at||"").slice(0,19).replace("T"," "), 'dim')
     + '</table></div>'
     + '<div class="card"><h3>Health</h3><table>'
-    + '<tr><td>Battery</td><td>'+esc(d.battery_pct!=null?d.battery_pct+"%"+(d.charging?" ⚡":""):"—")+'</td></tr>'
-    + '<tr><td>Storage</td><td>'+stor+'</td></tr>'
-    + '<tr><td>Last seen</td><td class="dim">'+esc((d.last_seen_at||"").slice(0,19).replace("T"," "))+'</td></tr>'
-    + '<tr><td>Enrolled</td><td class="dim">'+esc((d.enrolled_at||"").slice(0,19).replace("T"," "))+'</td></tr>'
+    + row('Battery', d.battery_pct!=null?d.battery_pct+"%"+(d.charging?" ⚡":""):"—")
+    + row('Storage', stor)
+    + row('Last seen', (d.last_seen_at||"").slice(0,19).replace("T"," "), 'dim')
     + '</table></div>'
-    + (fl.length ? '<div class="card"><h3>Flags</h3>'+fl.map(f=>'<span class="pill red" style="margin-right:6px">'+f+'</span>').join('')+'</div>':'');
+    + (fl.length ? '<div class="card"><h3>Flags</h3><div style="display:flex;gap:6px;flex-wrap:wrap">'+fl.map(f=>'<span class="pill" style="'+ (f[1]==='r'?'background:rgba(255,93,107,.12);color:#ff5d6b':'background:rgba(255,184,77,.1);color:#ffb84d') +'">⚑ '+f[0]+'</span>').join('')+'</div></div>' : '');
 }
-
-function setTabBtn(t){ }
+function row(k,v,cls){ return '<tr><td class="mut" style="width:38%">'+k+'</td><td class="'+(cls||'')+'">'+esc(v)+'</td></tr>'; }
 
 /* ================= FILES ================= */
 var filePath = "/sdcard";
 function loadDeviceFilesView(){
   el("dBody").innerHTML = ''
-    + '<div class="card"><div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">'
-    + '<button class="btn sm ghost" onclick="fileUp()">⬆ Up</button>'
-    + '<div class="crumb grow">'+esc(filePath)+'</div>'
-    + '<button class="btn sm ghost" id="btnBrowse" onclick="fileBrowse()">↻ Refresh</button>'
-    + '<button class="btn sm green" onclick="filePush()">▲ Push file to device</button>'
-    + '<button class="btn sm green" onclick="fileInstall()">▲ Push & install APK</button>'
+    + '<div class="card"><div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+    + '<button class="btn sm ghost" onclick="fileUp()">⬆</button>'
+    + '<div class="crumb">'+esc(filePath)+'</div>'
+    + '<button class="btn sm ghost" onclick="fileBrowse()">↻</button>'
+    + '<button class="btn sm green" onclick="filePush()">▲ Push</button>'
+    + '<button class="btn sm green" onclick="fileInstall()">▲ APK</button>'
     + '</div><div id="fileList" style="min-height:80px"></div></div>'
-    + '<div class="dim" style="font-size:12px">Tap a folder to open it · tap a file to download it to this computer.</div>';
+    + '<div class="dim" style="font-size:12px">Tap a folder to open it · tap a file to download it.</div>';
   fileBrowse();
 }
-function fileUp(){
-  const p = filePath;
-  if(p.indexOf("/")<0) return;
-  filePath = p.slice(0, p.lastIndexOf("/"));
-  if(!filePath) filePath = "/sdcard";
-  loadDeviceFilesView();
-}
+function fileUp(){ const p=filePath; if(p.indexOf("/")<0) return; filePath = p.slice(0,p.lastIndexOf("/")); if(!filePath) filePath="/sdcard"; loadDeviceFilesView(); }
 async function fileBrowse(){
-  const b = el("btnBrowse"); if(b) b.disabled = true;
-  try{
-    await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(filePath));
-    // give device a moment to answer browse, then fetch listing
-    setTimeout(()=>fileList(), 2500);
-  }catch(e){ fileList(new Error(e.message)); }
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(filePath)); setTimeout(()=>fileList(), 2500); }
+  catch(e){ fileList(new Error(e.message)); }
 }
 async function fileList(er){
   const list = el("fileList"); if(!list) return;
@@ -426,7 +479,7 @@ async function fileList(er){
   try{
     const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/content?path="+encodeURIComponent(filePath), {headers:{"Authorization":"Bearer "+token}});
     if(!r.ok){
-      if(r.status===404){ list.innerHTML = '<div class="dim">No listing for this folder yet — the device only uploads folders it has scanned. If the device is on, tap ↻ Refresh in a minute.</div>'; return; }
+      if(r.status===404){ list.innerHTML = '<div class="dim">No listing for this folder yet — the device only uploads folders it has scanned. If the device is on, tap ↻ Refresh.</div>'; return; }
       throw new Error("HTTP "+r.status);
     }
     const txt = await r.text();
@@ -436,73 +489,70 @@ async function fileList(er){
     list.innerHTML = items.length ? items.map(f=>{
       const isDir = f.type==="dir" || (f.name && !String(f.name).includes("."));
       const click = isDir ? "fileOpen('"+esc(f.name)+"')" : "fileDownload('"+esc(f.path)+"')";
-      return '<div class="frow"><span class="icon">'+(isDir?"📁":"📄")+'</span>'
+      return '<div class="frow"><span class="fic">'+(isDir?"📁":"📄")+'</span>'
         + '<span class="nm" onclick="'+click+'">'+esc(String(f.name||f.path||"?"))+'</span>'
         + '<span class="meta">'+(isDir?"":(f.size!=null?fmtSize(f.size):""))+'</span>'
-        + (isDir?'':'<span class="act"><button class="btn sm" onclick="fileDownload(\''+esc(f.path)+'\')">⬇ Save</button></span>')
+        + (isDir?'':'<span class="act"><button class="btn sm" onclick="fileDownload(\''+esc(f.path)+'\')">⬇</button></span>')
         + '</div>';
     }).join('') : '<div class="dim">Empty folder — or device hasn\'t answered yet, hit ↻ Refresh.</div>';
   }catch(e){ list.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
-function fileOpen(name){
-  filePath = filePath.replace(/\/+$/,"") + "/" + name;
-  loadDeviceFilesView();
-}
+function fileOpen(name){ filePath = filePath.replace(/\/+$/,"")+"/"+name; loadDeviceFilesView(); }
 async function fileDownload(path){
   try{
     const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path), {headers:{"Authorization":"Bearer "+token}});
-    if(!r.ok){ const j=await r.json().catch(()=>null); throw new Error((j&&j.detail)||"HTTP "+r.status); }
+    if(!r.ok) throw new Error("HTTP "+r.status);
     const blob = await r.blob();
     const a = document.createElement("a");
-    const nm = path.split("/").pop();
-    a.href = URL.createObjectURL(blob); a.download = nm; a.click();
-    flash("Downloaded "+nm);
+    a.href=URL.createObjectURL(blob); a.download = path.split("/").pop(); a.click();
+    flash("Downloaded");
   }catch(e){ flash("Download: "+e.message, true); }
 }
 async function filePush(){
-  const p = prompt("Destination folder on the device (default /sdcard/Download):","/sdcard/Download");
-  if(p==null) return;
+  const p = prompt("Destination folder on device:","/sdcard/Download"); if(p==null) return;
   const inp = document.createElement("input"); inp.type="file";
   inp.onchange = async ()=>{
     const f = inp.files[0]; if(!f) return;
-    const fd = new FormData();
-    fd.append("path", p.replace(/\/+$/,"")+"/"+f.name);
-    fd.append("content", f);
+    const fd = new FormData(); fd.append("path", p.replace(/\/+$/,"")+"/"+f.name); fd.append("content", f);
     flash("Uploading…");
-    try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files/push", {method:"POST", body: fd}); flash("Pushed to device — it will accept on next check-in."); }
+    try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files/push", {method:"POST", body: fd}); flash("Pushed — device accepts on next check-in."); }
     catch(e){ flash("Push failed: "+e.message, true); }
   };
   inp.click();
 }
 async function fileInstall(){
-  const f = prompt("Install an APK on the device.\nPick the .apk file:","");
-  if(f==null) return;
   const inp = document.createElement("input"); inp.type="file"; inp.accept=".apk,application/vnd.android.package-archive";
   inp.onchange = async ()=>{
     const apk = inp.files[0]; if(!apk) return;
     const fd = new FormData(); fd.append("content", apk);
     flash("Uploading APK…");
-    try{ const r = await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/install", {method:"POST", body: fd}); flash("APK "+apk.name+" sent — install prompt appears on device."); }
+    try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/install", {method:"POST", body: fd}); flash("APK sent — install prompt appears on device."); }
     catch(e){ flash("Install failed: "+e.message, true); }
   };
   inp.click();
 }
 function flash(msg, isErr){
-  let m = el("dMsg");
+  const m = el("dMsg"); if(!m) return;
   m.className = isErr?"errmsg":"okmsg";
   m.textContent = msg;
-  setTimeout(()=>{m.className="hidden";}, 6000);
+  setTimeout(()=>{m.className="hidden"}, 6000);
 }
 
-/* ================= APPS ON DEVICE ================= */
+/* ================= APPS ================= */
+async function loadDeviceAppsFromServer(){
+  el("dBody").innerHTML = '<div class="dim" style="padding:20px;text-align:center">Loading…</div>';
+  try{ const d = await api("/admin/devices/"+encodeURIComponent(cur)+"/detail"); loadDeviceAppsView(d); }
+  catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
+}
 async function loadDeviceAppsView(d){
-  el("dBody").innerHTML = '<div class="dim">Loading…</div>' + ''
-    + '<div style="margin-bottom:12px"><button class="btn sm" onclick="refreshApps()">↻ Refresh apps</button>'
-    + ' <button class="btn sm green" onclick="fileInstall()">📦 Push & install APK…</button></div><div id="appsList"></div>';
-  let apps = d.apps || [];
+  el("dBody").innerHTML = '<div style="margin-bottom:12px" class="bar">'
+    + '<button class="btn sm" onclick="refreshApps()">↻ Refresh apps</button>'
+    + '<button class="btn sm green" onclick="fileInstall()">📦 Push & install APK…</button></div>'
+    + '<div id="appsList"></div>';
+  const apps = d.apps || [];
   el("appsList").innerHTML = apps.length
     ? '<div class="card"><table><thead><tr><th>App</th><th>Package</th><th></th></tr></thead><tbody>'
-      + apps.map(a=>'<tr><td>'+esc(a.label||"—")+'</td><td class="dim" style="font-family:monospace;font-size:12px">'+esc(a.package)+'</td>'
+      + apps.map(a=>'<tr><td>'+esc(a.label||"—")+'</td><td class="dim mono">'+esc(a.package)+'</td>'
         + '<td style="text-align:right"><button class="btn sm red" onclick="uninstallApp(\''+esc(a.package)+'\',\''+esc(a.label||a.package)+'\')">🗑 Uninstall</button></td></tr>').join('')
       + '</tbody></table></div>'
     : '<div class="dim">No apps reported yet.</div>';
@@ -512,27 +562,28 @@ async function refreshApps(){
   catch(e){ flash(e.message, true); }
 }
 async function uninstallApp(pkg, label){
-  if(!confirm("Uninstall "+label+" ("+pkg+") from the device?")) return;
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/uninstall", {method:"POST", body: JSON.stringify({package:pkg})}); flash("Uninstall requested — confirm on the device if asked."); }
+  if(!confirm("Uninstall "+label+" ("+pkg+")?")) return;
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/uninstall", {method:"POST", body: JSON.stringify({package:pkg})}); flash("Uninstall requested — confirm on device."); }
   catch(e){ flash("Uninstall failed: "+e.message, true); }
 }
 
 /* ================= ACTIVITY / KEYSTROKES ================= */
-var logDate = "";
-async function loadDeviceLogsTab(d){
-  el("dBody").innerHTML = '<div class="dim">Loading logs…</div>';
+async function loadDeviceLogsTab(d){ // d optional
+  el("dBody").innerHTML = '<div class="dim" style="padding:20px;text-align:center">Loading logs…</div>';
   try{
     const l = await api("/admin/devices/"+encodeURIComponent(cur)+"/logs");
     var dates = [];
     if(Array.isArray(l)) dates = l;
     else if(Array.isArray(l.logs)) dates = l.logs.map(function(x){ return typeof x==="string" ? x : (x.log_date||x.date||x); });
     else if(Array.isArray(l.dates)) dates = l.dates;
-    else if(l && typeof l==="object") { for(var k in l){ if(Array.isArray(l[k])){ dates = l[k]; break; } } }
     dates = dates.filter(function(x){ return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(x)); });
     dates.sort().reverse();
-    if(!dates.length){ el("dBody").innerHTML = '<div class="card">No activity logs yet — open the monitor app on the device, tap once, and make sure the daily log is uploading.</div>'; return; }
+    if(!dates.length){
+      el("dBody").innerHTML = '<div class="card" style="text-align:center;padding:26px"><div style="font-size:34px;margin-bottom:10px">📭</div><b>No activity captured yet</b><div class="dim" style="margin-top:6px">The daily keystroke/activity log hasn\'t uploaded.<br>On the phone: re-enable the Accessibility service (Work Monitor → Accessibility → ON), then type anything — it lands here within a minute.</div></div>';
+      return;
+    }
     el("dBody").innerHTML = '<div class="card"><h3>Activity log</h3><div style="display:flex;gap:8px;flex-wrap:wrap">'
-      + dates.map(function(dt){ return '<button class="btn sm ghost" onclick="viewLogDay(\u0027'+esc(String(dt))+'\u0027)">'+'📅 '+esc(String(dt))+'</button>'; }).join('')
+      + dates.map(function(dt){ return '<button class="btn sm ghost" onclick="viewLogDay('+JSON.stringify(String(dt))+')">📅 '+esc(String(dt))+'</button>'; }).join('')
       + '</div></div><div id="logDay"></div>';
     if(dates.length === 1) viewLogDay(String(dates[0]));
   }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
@@ -543,7 +594,7 @@ async function viewLogDay(dt){
   try{
     const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(dt)+"/content", {headers:{"Authorization":"Bearer "+token}});
     const txt = r.ok ? await r.text() : "no content";
-    box.innerHTML = '<div class="card"><h3>'+esc(dt)+' <button class="btn sm ghost" style="float:right" onclick="logDownloadDay(\''+esc(dt)+'\')">⬇ Download</button></h3><pre class="pl">'+esc(txt)+'</pre></div>';
+    box.innerHTML = '<div class="card"><h3>'+esc(dt)+' <button class="btn sm ghost" style="float:right" onclick="logDownloadDay('+String(dt)+')">⬇ Download</button></h3><pre class="pl">'+esc(txt)+'</pre></div>';
   }catch(e){ box.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 async function logDownloadDay(dt){
@@ -556,7 +607,7 @@ async function logDownloadDay(dt){
 /* ================= LOCATION ================= */
 async function loadDeviceMapTab(){
   el("dBody").innerHTML = '<div class="card"><h3>Location</h3><div id="locBox" class="dim">Loading…</div></div>'
-    + '<div style="margin-top:10px"><button class="btn" onclick="forceLocate()">📍 Locate now</button></div>';
+    + '<div><button class="btn" onclick="forceLocate()">📍 Locate now</button></div>';
   try{
     const l = await api("/admin/devices/"+encodeURIComponent(cur)+"/locations");
     const pts = l.locations || l;
@@ -564,12 +615,12 @@ async function loadDeviceMapTab(){
       const last = pts[pts.length-1];
       el("locBox").innerHTML = '<div class="dim" style="margin-bottom:10px">Last fix: '+esc((last.ts||"").slice(0,19).replace("T"," "))+'</div>'
         + '<iframe style="width:100%;height:320px;border:none;border-radius:10px" src="https://www.openstreetmap.org/export/embed.html?bbox='+(last.lng-0.004)+'%2C'+(last.lat-0.002)+'%2C'+(last.lng+0.004)+'%2C'+(last.lat+0.002)+'&amp;layer=mapnik&amp;marker='+last.lat+'%2C'+last.lng+'"></iframe>'
-        + '<div class="dim" style="margin-top:8px">'+last.lat+' , '+last.lng+'</div>';
+        + '<div class="dim" style="margin-top:8px" class="mono">'+last.lat+', '+last.lng+'</div>';
     } else el("locBox").textContent = "No location fixes yet.";
   }catch(e){ el("locBox").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 async function forceLocate(){
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/command", {method:"POST", body: JSON.stringify({cmd:"sync"})}); flash("Location sync requested — device replies on next check-in."); }
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/command", {method:"POST", body: JSON.stringify({cmd:"sync"})}); flash("Location sync requested…"); }
   catch(e){ flash(e.message, true); }
 }
 
@@ -578,16 +629,17 @@ async function loadDeviceAuditTab(){
   try{
     const a = await api("/admin/audit?device_id="+encodeURIComponent(cur));
     const items = a.items || a;
-    el("dBody").innerHTML = items.length ? '<div class="card"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Result</th><th>Reason</th></tr></thead><tbody>'
+    el("dBody").innerHTML = items && items.length ? '<div class="card"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Result</th><th>Reason</th></tr></thead><tbody>'
       + items.map(x=>'<tr><td class="dim">'+esc((x.ts||"").slice(5,19).replace("T"," "))+'</td><td>'+esc(x.actor)+'</td><td>'+esc(x.action.replace("command:",""))+'</td><td>'+esc(x.result||"—")+'</td><td class="dim">'+esc(x.reason||"—")+'</td></tr>').join('')
       + '</tbody></table></div>' : '<div class="card dim">No actions for this device yet.</div>';
   }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
-/* ================= DEVICE ACTIONS (all buttons) ================= */
+/* ================= DEVICE ACTIONS ================= */
 async function sendAction(act, label, needsConfirm){
   if(needsConfirm && !confirm(label+" on "+cur.slice(0,8)+"?")) return;
-  el("dMsg").className=""; el("dMsg").textContent="Sending…";
+  const m = el("dMsg");
+  m.className=""; m.textContent="Sending…";
   try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/"+act, {method:"POST", body:"{}"}); flash(label+" sent — device reacts on next check-in."); }
   catch(e){ flash(label+": "+(e&&e.message?e.message:JSON.stringify(e)), true); }
 }
@@ -597,69 +649,34 @@ function confirmWipe(){
   sendAction("wipe","Wipe");
 }
 
-/* ---------- device tab dispatch ---------- */
-function devTab(t){
-  curTab = t;
-  el("devTabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.t===t));
-  if(t==="0"){ loadDeviceDetail(cur,"0"); }
-  else if(t==="1"){ loadDeviceFilesView(); }
-  else if(t==="2"){ loadDeviceAppsFromServer(); }
-  else if(t==="3"){ loadDeviceLogsTab(); }
-  else if(t==="4"){ loadDeviceMapTab(); }
-  else if(t==="5"){ loadDeviceAuditTab(); }
-}
-
-/* ================= GLOBAL: APPS ================= */
-async function loadDeviceAppsFromServer(){
-  el("dBody").innerHTML = '<div class="dim">Loading…</div>';
-  try{
-    const d = await api("/admin/devices/"+encodeURIComponent(cur)+"/detail");
-    loadDeviceAppsView(d);
-  }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
-}
-
-async function loadGlobalApps(){
-  el("appsBody").innerHTML = '<div class="dim">Loading…</div>';
-  try{
-    const d = await api("/admin/devices");
-    const all = d.devices||d;
-    const active = (all||[]).find(function(x){ return x.status === "active"; });
-    if(!active){ el("appsBody").innerHTML = '<div class="dim">No active devices yet.</div>'; return; }
-    const det = await api("/admin/devices/"+encodeURIComponent(active.device_id)+"/detail");
-    const apps = det.apps || [];
-    if(!apps.length){ el("appsBody").innerHTML = '<div class="dim">No apps reported yet — checking in on next pulse.</div>'; return; }
-    el("appsBody").innerHTML = '<div class="card"><h3>Live device: '+esc(active.label||active.model||"device")+' ('+apps.length+' apps)</h3><table><thead><tr><th>App</th><th>Package</th></tr></thead><tbody>'
-      + apps.map(function(a){ return '<tr><td>'+esc(a.label||a.package||"—")+'</td><td class="dim" style="font-family:monospace;font-size:12px">'+esc(a.package||"")+'</td></tr>'; }).join('')
-      + '</tbody></table><div class="dim" style="margin-top:6px">To manage these apps, open the live device → Apps tab.</div></div>';
-  }catch(e){ el("appsBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
-}
+/* ================= GLOBAL AUDIT ================= */
 async function loadAudit(){
-  el("audBody").innerHTML = '<div class="dim">Loading…</div>';
+  el("audBody").innerHTML = '<div class="dim" style="padding:14px">Loading…</div>';
   try{
     const a = await api("/admin/audit");
     const items = a.items || a;
-    el("audBody").innerHTML = items.length ? '<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Device</th><th>Result</th><th>Reason</th></tr></thead><tbody>'
-      + items.map(x=>'<tr><td class="dim">'+esc((x.ts||"").slice(5,19).replace("T"," "))+'</td><td>'+esc(x.actor)+'</td><td>'+esc(x.action.replace("command:",""))+'</td><td class="dim">'+esc((x.device_id||"").slice(0,8))+'</td><td>'+esc(x.result||"—")+'</td><td class="dim">'+esc(x.reason||"—")+'</td></tr>').join('')
-      + '</tbody></table>' : 'No actions yet.';
+    el("audBody").innerHTML = items && items.length ? '<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Device</th><th>Result</th><th>Reason</th></tr></thead><tbody>'
+      + items.map(x=>'<tr><td class="dim">'+esc((x.ts||"").slice(5,19).replace("T"," "))+'</td><td>'+esc(x.actor)+'</td><td>'+esc(x.action.replace("command:",""))+'</td><td class="dim mono">'+esc((x.device_id||"").slice(0,8))+'</td><td>'+esc(x.result||"—")+'</td><td class="dim">'+esc(x.reason||"—")+'</td></tr>').join('')
+      + '</tbody></table>' : '<div class="dim">No actions recorded yet.</div>';
   }catch(e){ el("audBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
-/* ================= GLOBAL: SETTINGS (buttons + coming soon) ================= */
+/* ================= SETTINGS ================= */
+function optCard(big, title, sub, onclick){
+  return '<button class="opt" onclick="'+onclick+'"><span class="biig">'+big+'</span><span>'+title+'</span><span class="osub">'+sub+'</span></button>';
+}
 async function loadSettings(){
   el("whForm").innerHTML = '<div class="dim">Loading…</div>';
   try{
     const s = await api("/admin/settings");
     const wh = s.work_hours || {};
-    const active = wh.active || String(s.work_active||"").trim()==="1" ? true : false;
-    el("whForm").innerHTML
-      = '<div class="dim" style="margin-bottom:10px">Click to toggle. No forms, no commands.</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">'
-      + '<button class="opt '+(active?"on":"")+'" onclick="toggleSetting(\'work_active\', '+(active?0:1)+')"><span class="big">🕘</span>Work hours gating<br><span class="dim sm">'+((active?"On — location only in work hours":"Off — always record location")||"")+'</span></button>'
-      + '</div><div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">'
-      + '<button class="opt" onclick="flash(\'Coming soon: automatic install of approved APKs\')"><span class="big">📦</span>Silent install<br><span class="dim sm">Coming soon</span></button>'
-      + '<button class="opt" onclick="flash(\'Coming soon: kiosk lock a device to one app\')"><span class="big">🔐</span>Kiosk mode<br><span class="dim sm">Coming soon</span></button>'
-      + '<button class="opt" onclick="flash(\'Coming soon: alert when device leaves an area\')"><span class="big">📍</span>Geofence alerts<br><span class="dim sm">Coming soon</span></button>'
-      + '<button class="opt" onclick="flash(\'Coming soon: require a password on the device\')"><span class="big">🔑</span>Password policy<br><span class="dim sm">Coming soon</span></button>'
+    const active = wh.active || String(s.work_active||"").trim()==="1";
+    el("whForm").innerHTML = '<div class="optgrid">'
+      + '<button class="opt '+(active?"on":"")+'" onclick="toggleSetting(\'work_active\','+(active?0:1)+')"><span class="biig">🕘</span><span>Work hours gating</span><span class="osub">'+((active?"On — location only in work hours":"Off — always record location"))+'</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: automatic install of approved APKs\')"><span class="biig">📦</span><span>Silent install</span><span class="osub">Coming soon</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: kiosk lock a device\')"><span class="biig">🔐</span><span>Kiosk mode</span><span class="osub">Coming soon</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: geofence alerts\')"><span class="biig">📍</span><span>Geofence alerts</span><span class="osub">Coming soon</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: require a password on the device\')"><span class="biig">🔑</span><span>Password policy</span><span class="osub">Coming soon</span></button>'
       + '</div>';
   }catch(e){ el("whForm").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
@@ -674,9 +691,6 @@ function fmtSize(b){
   const u=["KB","MB","GB","TB"]; let i=-1; do{ b/=1024; i++; }while(b>=1024 && i<u.length-1);
   return b.toFixed(1)+u[i];
 }
-
-/* ---------- boot ---------- */
 init();
 </script>
-</body>
-</html>
+</body></html>
