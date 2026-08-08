@@ -133,7 +133,9 @@ nav.bottom button.on .ic{filter:drop-shadow(0 0 8px #5b8cff88)}
 @media(min-width:700px){.cmd-grid{grid-template-columns:repeat(8,1fr)}}
 .sect-t{font-size:.74rem;color:var(--mut);text-transform:uppercase;letter-spacing:.12em;margin:1.1rem 0 .5rem;display:flex;align-items:center;gap:.5rem}
 .sect-t::after{content:"";flex:1;height:1px;background:var(--bord)}
-.kv{display:flex;justify-content:space-between;gap:1rem;padding:.32rem 0;border-bottom:1px dashed #1a2438;font-size:.84rem}
+.kv{display:flex;justify-content:space-between;gap:1rem;padding:.32rem 0;border-bottom:1px dashed #1a2438;font-size:.84rem;min-width:0}
+.kv .k{flex:0 1 auto;max-width:45%;word-break:break-word;overflow-wrap:break-word}
+.kv .v{flex:1 1 auto;text-align:right;word-break:break-all;overflow-wrap:break-word;min-width:0}
 .kv:last-child{border-bottom:none}
 .kv .k{color:var(--mut);flex-shrink:0}
 .kv .v{text-align:right;word-break:break-all}
