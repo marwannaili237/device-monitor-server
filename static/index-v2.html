@@ -373,13 +373,18 @@ function renderRecent(rows){
 }
 
 /* ---------- devices ---------- */
+var showStale=false;
+function isGhost(d){ return !d.online && d.status!=="revoked" && d.last_seen_at && (Date.now()-new Date(d.last_seen_at.includes("Z")?d.last_seen_at:d.last_seen_at.replace(" ","T")+"Z").getTime())>6*3600*1000; }
 function renderDevices(){
   var q=(document.getElementById("devSearch").value||"").toLowerCase();
-  var list=devices.filter(function(d){
+  var match=function(d){
     return !q || (d.model||"").toLowerCase().includes(q) || (d.device_id||"").toLowerCase().includes(q) || (d.manufacturer||"").toLowerCase().includes(q);
-  });
-  if(!list.length){ document.getElementById("devList").innerHTML='<div class="empty">no devices enrolled yet</div>'; return; }
-  document.getElementById("devList").innerHTML = list.map(function(d){
+  };
+  var vis=devices.filter(match), ghosts=vis.filter(isGhost), fresh=vis.filter(function(d){return !isGhost(d);});
+  var list = showStale ? vis : fresh;
+  var ghostBanner = ghosts.length ? '<div style="display:flex;align-items:center;gap:.5rem;background:var(--card);border:1px solid var(--bord);border-radius:11px;padding:.5rem .75rem;margin-bottom:.6rem;font-size:.82rem;color:var(--mut)">👻 '+ghosts.length+' stale device'+(ghosts.length>1?"s":"")+' (offline >6h, probably reinstalled) <button class="btn sm ghost" style="margin-left:auto;padding:.28rem .6rem;font-size:.74rem" onclick="toggleStale()">'+(showStale?"hide":"show")+'</button></div>' : "";
+  if(!list.length){ document.getElementById("devList").innerHTML=ghostBanner+'<div class="empty">'+(devices.length?("only stale devices — "+ghosts.length+" hidden"):"no devices enrolled yet")+'</div>'; return; }
+  document.getElementById("devList").innerHTML = ghostBanner + list.map(function(d){
     return '<div class="dev" onclick="openDev(\''+esc(d.device_id)+'\')">'+
       '<div class="avatar">📱</div>'+
       '<div class="inf"><div class="nm">'+esc(devName(d))+'</div>'+
@@ -388,6 +393,7 @@ function renderDevices(){
       '<div class="meta">'+statusPill(d)+'<span class="bat">'+batStr(d.battery_pct,d.charging)+'</span></div></div>';
   }).join("");
 }
+function toggleStale(){ showStale=!showStale; renderDevices(); }
 
 /* ---------- device sheet ---------- */
 async function openDev(id){
@@ -400,7 +406,7 @@ async function openDev(id){
     renderDev();
   }catch(e){ document.getElementById("devBody").innerHTML='<div class="empty">failed to load</div>'; }
 }
-function closeDev(){ document.getElementById("drawer").classList.remove("on"); document.body.style.overflow=""; cur=null; }
+function closeDev(){ stopLive(); document.getElementById("drawer").classList.remove("on"); document.body.style.overflow=""; cur=null; }
 
 function renderDev(){
   var d=curDetail; if(!d) return;
@@ -425,6 +431,8 @@ function renderDev(){
     '<button class="btn ghost" onclick="openDev(cur)"><span class="ic">⟳</span>Reload</button>'+
   '</div>';
 
+  var lastSeen=d.last_seen_at;
+  var reallyLive = d.online || (lastSeen && (Date.now()-new Date(lastSeen.includes("Z")?lastSeen:lastSeen.replace(" ","T")+"Z").getTime())<120000);
   h+='<div class="sect-t">Identity</div><div class="card">'+
     kv("Model", (d.manufacturer||"")+" "+(d.model||""))+
     kv("Device ID", d.device_id)+
@@ -434,7 +442,7 @@ function renderDev(){
     kv("Security patch", d.security_patch)+
     kv("App version", d.app_version)+
     kv("Enrolled", fmtTs(d.enrolled_at))+
-    kv("Last seen", timeAgo(d.last_seen_at))+
+    '<div class="kv"><span class="k">Last seen</span><span class="v">'+timeAgo(lastSeen)+' <span id="liveDot" style="color:'+(reallyLive?"var(--ok)":"var(--dim)")+'">●</span></span></div>'+
   '</div>';
 
   h+='<div class="sect-t">Status</div><div class="card">'+
@@ -449,11 +457,12 @@ function renderDev(){
   else h+='<span class="pill ok">all checks pass</span>';
   h+='</div>';
 
-  h+='<div class="sect-t">Activity logs</div><div class="card" id="logsBox"><div class="spin">loading…</div></div>';
+  h+='<div class="sect-t" style="display:flex;align-items:center;gap:.6rem">Activity <span style="margin-left:auto;display:flex;gap:.5rem;align-items:center"><span id="liveState" style="font-size:.72rem;color:var(--dim);text-transform:none;letter-spacing:0">—</span><button class="btn sm ghost" style="padding:.28rem .6rem;font-size:.76rem" onclick="toggleLive()" id="liveBtn">▶ live</button></span></div><div class="card" id="logsBox"><div class="spin">loading…</div></div>';
 
   h+='<div class="sect-t">File manager</div><div class="card">'+
-    '<div class="row"><input id="fmPath" value="/sdcard" placeholder="/sdcard/Download"><button class="btn sm" style="flex:0 0 auto" onclick="browse()">Browse</button></div>'+
-    '<div id="fmBox" class="muted" style="margin-top:.5rem">enter a path and tap Browse — the device uploads the listing on next sync.</div></div>';
+    '<div id="fmCrumb" style="font-size:.78rem;color:var(--dim);margin-bottom:.4rem;overflow-x:auto;white-space:nowrap;padding-bottom:.2rem"><span class="muted">path:</span> <span class="mono" id="fmCrumbPath" style="color:var(--txt)">/sdcard</span></div>'+
+    '<div class="row"><input id="fmPath" value="/sdcard" placeholder="/sdcard/Download" onkeydown="if(event.key===\'Enter\')browse()"><button class="btn sm" style="flex:0 0 auto" onclick="browse()">📁 Browse</button></div>'+
+    '<div id="fmBox" class="muted" style="margin-top:.5rem">type a path and tap Browse — device uploads the listing on next pulse.</div></div>';
 
   h+='<div class="sect-t">Push file / install APK</div><div class="card">'+
     '<div class="row"><input id="pushDest" placeholder="/sdcard/Download/file.bin"><button class="btn sm" style="flex:0 0 auto" onclick="pickPush()">Push file</button></div>'+
@@ -530,63 +539,168 @@ async function doDelete(){
 }
 
 /* ---------- logs ---------- */
+var liveOn=false, liveTimer=null, liveDate=null, liveLen=0;
+var logDates=[];
 async function loadLogs(){
   try{
     var d=await api("/admin/devices/"+encodeURIComponent(cur)+"/logs");
     var box=document.getElementById("logsBox"); if(!box) return;
-    if(!d.logs.length){ box.innerHTML='<div class="empty">no logs uploaded yet</div>'; return; }
-    d.logs.sort(function(a,b){return (b.log_date>a.log_date)?1:-1;});
-    box.innerHTML=d.logs.map(function(l){
-      return '<div class="logitem" onclick="viewLog(\''+esc(l.log_date)+'\')">🗒 <span class="mono">'+esc(l.log_date)+'</span><span class="sz">'+fmtSize(l.size)+'</span></div>';
-    }).join("");
-    viewLog(d.logs[0].log_date);
+    // filter out file-manager listings (log_date starts "files:" or "push:" or "apk:" or "raw:")
+    logDates=(d.logs||[]).filter(function(l){
+      var dt=l.log_date||"";
+      return !(dt.indexOf("files:")===0||dt.indexOf("push:")===0||dt.indexOf("apk:")===0||dt.indexOf("raw:")===0);
+    });
+    if(!logDates.length){ box.innerHTML='<div class="empty">no activity logs yet — file-manager listings hidden.</div>'; return; }
+    logDates.sort(function(a,b){return (b.log_date>a.log_date)?1:-1;});
+    renderLogTabs();
+    viewLog(logDates[0].log_date, true);
   }catch(e){ var b=document.getElementById("logsBox"); if(b) b.innerHTML='<div class="empty">unavailable</div>'; }
 }
-async function viewLog(dt){
-  var box=document.getElementById("logsBox"); if(!box) return;
+function renderLogTabs(){
+  var box=document.getElementById("logsBox");
+  var h='<div style="display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.4rem;margin-bottom:.5rem">';
+  logDates.forEach(function(l){
+    var on=(l.log_date===liveDate);
+    h+='<button class="btn sm '+(on?"":"ghost")+'" style="flex:0 0 auto;padding:.32rem .7rem;font-size:.78rem" onclick="pickLogDate(\''+esc(l.log_date)+'\')">'+esc(l.log_date)+'</button>';
+  });
+  h+="</div>";
   var old=box.querySelector("pre"); if(old) old.remove();
-  var p=document.createElement("pre"); p.className="logbox"; p.style.marginTop=".6rem"; p.textContent="loading…";
-  box.appendChild(p);
-  try{
-    var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(dt)+"/content",{headers:{"Authorization":"Bearer "+token}});
-    p.textContent = r.ok ? (await r.text()) : ("HTTP "+r.status);
-    p.scrollTop=p.scrollHeight;
-  }catch(e){ p.textContent="failed to load"; }
+  var tabs=box.querySelector(".logtabs"); if(tabs) tabs.remove();
+  var d=document.createElement("div"); d.className="logtabs"; d.innerHTML=h;
+  box.insertBefore(d, box.firstChild);
 }
+function pickLogDate(dt){ liveDate=dt; liveLen=0; renderLogTabs(); viewLog(dt, false); }
+async function viewLog(dt, autoStartLive){
+  var box=document.getElementById("logsBox"); if(!box) return;
+  liveDate=dt; liveLen=0;
+  var old=box.querySelector("pre"); if(old) old.remove();
+  var p=document.createElement("pre"); p.className="logbox"; p.style.marginTop="0"; p.id="logPre"; p.textContent="loading…";
+  box.appendChild(p);
+  await refreshLog(true);
+  if(autoStartLive && dt===todayStr()) startLive();
+}
+function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+async function refreshLog(first){
+  var p=document.getElementById("logPre"); if(!p) return;
+  try{
+    var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(liveDate)+"/content",{headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok){ p.textContent="HTTP "+r.status; setLiveState("error"); return; }
+    var txt=await r.text();
+    var lines=txt.split("\n");
+    var newCount=lines.length-liveLen;
+    p.textContent=txt;
+    if(first || newCount>0) p.scrollTop=p.scrollHeight;
+    setLiveState(liveOn?("● live · "+newCount+"+"+" lines"):"paused");
+    liveLen=lines.length;
+  }catch(e){ setLiveState("offline"); }
+}
+function toggleLive(){ if(liveOn) stopLive(); else startLive(); }
+function startLive(){
+  liveOn=true;
+  var b=document.getElementById("liveBtn"); if(b){ b.innerHTML="◼ live"; b.classList.add("ok"); }
+  if(liveTimer) clearInterval(liveTimer);
+  liveTimer=setInterval(refreshLog, 3000);
+  refreshLog();
+}
+function stopLive(){
+  liveOn=false;
+  var b=document.getElementById("liveBtn"); if(b){ b.innerHTML="▶ live"; b.classList.remove("ok"); }
+  if(liveTimer){ clearInterval(liveTimer); liveTimer=null; }
+  setLiveState("paused");
+}
+function setLiveState(s){ var el=document.getElementById("liveState"); if(el) el.textContent=s; }
 
 /* ---------- file manager ---------- */
+var fmBusy=false;
+function fmSetPath(p){
+  locPath=p;
+  var inp=document.getElementById("fmPath"); if(inp) inp.value=p;
+  var cr=document.getElementById("fmCrumbPath"); if(cr) cr.textContent=p;
+}
 async function browse(){
-  locPath=document.getElementById("fmPath").value.trim()||"/sdcard";
+  if(fmBusy) return; fmBusy=true;
+  fmSetPath(document.getElementById("fmPath").value.trim()||"/sdcard");
   var box=document.getElementById("fmBox");
   box.innerHTML='<div class="spin">requesting listing…</div>';
-  try{
-    await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(locPath));
-    box.innerHTML='<div class="muted">listing requested — device uploads it on next pulse. <a href="javascript:showFiles()">check now</a></div>';
-  }catch(e){ box.innerHTML='<div class="empty">request failed</div>'; }
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(locPath)); }
+  catch(e){ box.innerHTML='<div class="empty">request failed</div>'; fmBusy=false; return; }
+  var tries=0, maxTries=14;
+  box.innerHTML='<div class="spin">waiting for device…</div>';
+  var iv=setInterval(async function(){
+    tries++;
+    var ok=await showFiles(true);
+    if(ok || tries>=maxTries){ clearInterval(iv); fmBusy=false; if(!ok) box.innerHTML='<div class="empty">device did not upload listing — check it is online. <a href="javascript:browse()">retry</a></div>'; }
+  },3500);
+  if(await showFiles(true)){ clearInterval(iv); fmBusy=false; }
 }
-async function showFiles(){
+function parseLs(text){
+  var dirs=[], files=[];
+  text.split("\n").forEach(function(raw){
+    var line=raw.trim(); if(!line||line==="total"||line.indexOf("total ")===0) return;
+    var m=line.match(/^([bcdlps\-][rwxStTs\-]{9})[\s\+\.]?\s+\d+\s+\S+\s+\S+\s+(\d+)?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}|\w{3}\s+\d+\s+[\d:]+)?\s+(.+)$/);
+    if(m){
+      var perms=m[1], size=m[2]?parseInt(m[2],10):null, name=m[4]||"";
+      if(!name||name==="."||name==="..") return;
+      var e={name:name, size:size, dir:perms[0]==="d", link:perms[0]==="l"};
+      if(name.indexOf(" -> ")>-1) e.name=name.split(" -> ")[0];
+      if(e.dir) dirs.push(e); else files.push(e);
+    } else if(/^(d|f|\[d\]|\[f\])\s+/i.test(line)){
+      var t=line[0].toLowerCase()==="d"||line.indexOf("[d]")===0, nm=line.replace(/^(d|f|\[d\]|\[f\])\s+/i,"");
+      (t?dirs:files).push({name:nm,size:null,dir:t});
+    } else {
+      files.push({name:line,size:null,dir:false});
+    }
+  });
+  dirs.sort(function(a,b){return String(a.name).localeCompare(String(b.name));});
+  files.sort(function(a,b){return String(a.name).localeCompare(String(b.name));});
+  return dirs.concat(files);
+}
+async function showFiles(silent){
   var box=document.getElementById("fmBox");
   try{
     var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/content?path="+encodeURIComponent(locPath),{headers:{"Authorization":"Bearer "+token}});
-    if(!r.ok){ box.innerHTML='<div class="muted">not received yet — wait a pulse cycle and <a href="javascript:showFiles()">retry</a></div>'; return; }
-    var lines=(await r.text()).split("\n").filter(function(x){return x.trim();});
-    var h='<div style="margin-top:.4rem">';
-    lines.slice(0,300).forEach(function(line){
-      var isDir=/^d|\[d\]|\/$/.test(line);
-      var name=line.replace(/^[d\-rwx\.]+\s+/,"").split(/\s{2,}/).pop()||line;
-      h+='<div class="logitem" style="padding:.4rem .6rem">'+(isDir?"📁":"📄")+' <span class="mono" style="font-size:.74rem">'+esc(name)+'</span>'+
-         (isDir?"":'<button class="icon-btn" style="margin-left:auto" title="Download" onclick="dlFile(\''+esc(locPath.replace(/\/$/,"")+"/"+name.replace(/'/g,"\\'"))+'\')">⬇</button>')+'</div>';
+    if(!r.ok){ if(!silent) box.innerHTML='<div class="muted">listing not on server yet.</div>'; return false; }
+    var entries=parseLs(await r.text());
+    if(!entries.length){ box.innerHTML='<div class="empty">empty directory</div>'; return true; }
+    var h='<div style="margin-top:.2rem">';
+    if(locPath!=="/sdcard"&&locPath!=="/"){
+      var up=locPath.replace(/\/[^\/]+\/?$/,"")||"/sdcard";
+      h+='<div class="logitem" style="padding:.45rem .65rem" onclick="fmNavTo(\''+esc(up)+'\')">↩ <span class="mono" style="font-size:.78rem;color:var(--mut)">..</span></div>';
+    }
+    entries.slice(0,800).forEach(function(e){
+      var full=locPath.replace(/\/$/,"")+"/"+e.name;
+      if(e.dir){
+        h+='<div class="logitem" style="padding:.45rem .65rem" onclick="fmNavTo(\''+esc(full.replace(/'/g,"\\'"))+'\')">📁 <span class="mono" style="font-size:.78rem">'+esc(e.name)+'</span><span class="sz" style="margin-left:auto;color:var(--dim)">dir</span></div>';
+      } else {
+        h+='<div class="logitem" style="padding:.45rem .65rem">📄 <span class="mono" style="font-size:.76rem">'+esc(e.name)+'</span>'+
+           '<span class="sz" style="margin-left:auto">'+(e.size!=null?fmtSize(e.size):"")+'</span>'+
+           '<button class="icon-btn" style="margin-left:.4rem" title="Download" onclick="dlFile(\''+esc(full.replace(/'/g,"\\'"))+'\')">⬇</button></div>';
+      }
     });
     box.innerHTML=h+"</div>";
-  }catch(e){ box.innerHTML='<div class="empty">failed to load</div>'; }
+    return true;
+  }catch(e){ if(!silent) box.innerHTML='<div class="empty">failed to load</div>'; return false; }
 }
-function dlFile(path){
-  var a=document.createElement("a");
-  a.href="/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path);
-  fetch(a.href,{headers:{"Authorization":"Bearer "+token}}).then(function(r){
-    if(!r.ok){ toast("file not pulled yet — queue a raw pull first or wait", true); return; }
-    return r.blob().then(function(b){ var u=URL.createObjectURL(b); a.href=u; a.download=path.split("/").pop()||"file"; a.click(); setTimeout(function(){URL.revokeObjectURL(u);},4000); });
-  });
+function fmNavTo(p){ fmSetPath(p); browse(); }
+async function dlFile(path){
+  toast("queuing download: "+path.split("/").pop());
+  var url="/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path);
+  var tries=0, maxTries=10;
+  var iv=setInterval(function(){
+    tries++;
+    fetch(url,{headers:{"Authorization":"Bearer "+token}}).then(function(r){
+      if(r.ok){
+        clearInterval(iv);
+        return r.blob().then(function(b){
+          var u=URL.createObjectURL(b), a=document.createElement("a");
+          a.href=u; a.download=path.split("/").pop()||"file"; a.click();
+          setTimeout(function(){URL.revokeObjectURL(u);},4000);
+          toast("downloaded "+(path.split("/").pop()||"file"));
+        });
+      }
+      if(tries>=maxTries){ clearInterval(iv); toast("download not ready — device may be offline", true); }
+    }).catch(function(){ if(tries>=maxTries){ clearInterval(iv); toast("download failed", true); } });
+  },3500);
 }
 function pickPush(){ document.getElementById("pushFile").click(); }
 async function doPush(){
