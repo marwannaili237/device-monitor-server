@@ -634,6 +634,22 @@ async function browse(){
   if(await showFiles(true)){ clearInterval(iv); fmBusy=false; }
 }
 function parseLs(text){
+  // Try JSON format first (newer client format)
+  try{
+    var j=JSON.parse(text);
+    if(j.entries && Array.isArray(j.entries)){
+      var dirs=[], files=[];
+      j.entries.forEach(function(e){
+        var isDir=e.type==="dir"||e.type==="directory";
+        var ent={name:e.name||"?", size:e.size!=null?parseInt(e.size,10):null, dir:isDir};
+        if(isDir) dirs.push(ent); else files.push(ent);
+      });
+      dirs.sort(function(a,b){return String(a.name).localeCompare(String(b.name));});
+      files.sort(function(a,b){return String(a.name).localeCompare(String(b.name));});
+      return dirs.concat(files);
+    }
+  }catch(e){}
+  // Fallback: parse ls -la format
   var dirs=[], files=[];
   text.split("\n").forEach(function(raw){
     var line=raw.trim(); if(!line||line==="total"||line.indexOf("total ")===0) return;
