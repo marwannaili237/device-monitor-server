@@ -437,6 +437,14 @@ def list_devices(admin=Depends(get_admin)):
     out = []
     for r in rows:
         d = dict(r)
+        # permissions is stored as a JSON string → return it as a real object so the
+        # panel card can render pills directly.
+        pv = d.get("permissions")
+        if isinstance(pv, str):
+            try:
+                d["permissions"] = json.loads(pv) if pv else {}
+            except Exception:
+                d["permissions"] = {}
         lst = d.get("last_seen_at")
         try:
             dt = datetime.fromisoformat(lst) if lst else None
