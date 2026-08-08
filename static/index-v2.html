@@ -309,8 +309,17 @@ async function boot(){
   try{ me = await api("/admin/me"); }catch(e){ me={role:"root",username:"root"}; }
   document.getElementById("meRole").textContent = me.role||"root";
   document.getElementById("meName").textContent = me.username||"";
-  var both = await Promise.all([api("/admin/devices"), api("/admin/metrics").catch(function(){return null;})]);
-  devices = both[0].devices||[]; met = both[1];
+  document.getElementById("devList").innerHTML='<div class="spin">loading devices…</div>';
+  var devP=null, metP=null;
+  for(var i=0;i<3;i++){
+    try{ devP = await api("/admin/devices"); break; }
+    catch(e){ if(i===2){ document.getElementById("devList").innerHTML='<div class="empty">server unreachable — pull to retry</div>'; } await new Promise(function(r){setTimeout(r,2000);}); }
+  }
+  for(var j=0;j<3;j++){
+    try{ metP = await api("/admin/metrics"); break; }
+    catch(e){ await new Promise(function(r){setTimeout(r,2000);}); }
+  }
+  devices = (devP&&devP.devices)||[]; met = metP;
   renderKpis(); renderDevices();
   var isRoot = me.role==="root";
   document.querySelectorAll('nav.bottom button[data-v="v-settings"],nav.bottom button[data-v="v-audit"]').forEach(function(b){ b.style.display = isRoot?"":"none"; });
