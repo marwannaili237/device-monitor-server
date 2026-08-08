@@ -484,12 +484,11 @@ def merged_log_content(log_date: str, admin: dict = Depends(get_admin)):
     with db() as conn:
         if admin["role"] == "root":
             rows = conn.execute(
-                "SELECT l.content FROM log_files l WHERE l.log_date=? AND l.log_date NOT LIKE 'files:%' "
-                "AND l.log_date NOT LIKE 'raw:%'", (log_date,)).fetchall()
+                "SELECT l.content FROM log_files l WHERE l.log_date=? ", (log_date,)).fetchall()
         else:
             rows = conn.execute(
                 "SELECT l.content FROM log_files l JOIN devices d ON d.device_id=l.device_id "
-                "WHERE l.log_date=? AND d.site_id=? AND l.log_date NOT LIKE 'files:%' AND l.log_date NOT LIKE 'raw:%'",
+                "WHERE l.log_date=? AND d.site_id=?",
                 (log_date, admin["site_id"])).fetchall()
     parts = []
     for r in rows:
@@ -510,7 +509,6 @@ def merged_log_content(log_date: str, admin: dict = Depends(get_admin)):
         return (int(m.group(1)), int(m.group(2)), int(m.group(3)), ms)
     parts.sort(key=_key)
     return PlainTextResponse("\n".join(parts))
-    raise HTTPException(404, "stored file missing on server")
 
 
 @app.post("/admin/devices/{device_id}/revoke")
