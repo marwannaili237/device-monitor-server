@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#0a0e14">
 <title>Work Monitor — Console</title>
 <style>
+
+/* Mobile overflow protection */
+.card, .logbox, .logitem, .mono, .kv .v { word-break: break-word; overflow-wrap: break-word; }
+.card { max-width: 100%; }
+pre.logbox { white-space: pre-wrap; word-break: break-all; }
 :root{
   --bg:#0a0e14; --bg2:#0e1420; --card:#121a2b; --card2:#172136; --bord:#1e2b4a;
   --txt:#e4ecf7; --mut:#8a99b8; --dim:#54628a;
