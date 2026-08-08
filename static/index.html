@@ -559,6 +559,12 @@ function fileListContent(){
   else if(fileSortMode==="type") items = items.slice().sort((a,b)=>String(a.type).localeCompare(String(b.type)));
   else items = items.slice().sort((a,b)=>{ const ad=a.type==="dir"?0:1, bd=b.type==="dir"?0:1; return ad-bd || String(a.name||"").localeCompare(String(b.name||"")); });
   if(!items.length){ list.innerHTML = '<div class="dim" style="padding:24px;text-align:center">📂 Empty folder — or waiting for the device to answer. Tap ↻.</div>'; return; }
+  // device reported a storage-permission problem → show a clear banner instead of a fake row
+  const perr = items.find(f=>String(f.name)==="STORAGE_PERMISSION" && f.type==="error");
+  if(perr){
+    list.innerHTML = '<div class="errmsg" style="margin:12px;padding:14px;border:1px solid var(--red2,#c33);border-radius:10px;background:rgba(204,51,51,.08)"><b>🚫 No storage permission on the device</b><div style="margin-top:6px;font-size:13px;line-height:1.5">'+esc(perr.path||"Grant All files access on the phone: Settings → Apps → Work Monitor → All files access.")+'</div><div class="dim" style="margin-top:8px;font-size:12px">After granting, tap ↻ to reload — and the app must be reopened on the phone for it to re-request.</div></div>';
+    return;
+  }
   list.innerHTML = items.map(f=>{
     const isDir = f.type==="dir" || f.isDir;
     const full = f.path || (filePath.replace(/\/+$/,"")+"/"+f.name);
@@ -694,12 +700,11 @@ function logLoad(){
       if(!r.ok) return;
       const txt = await r.text();
       const lines = txt.split(/\r?\n/).filter(Boolean);
-      // newest first, cap at 300 lines for rendering speed
-      const show = lines.slice(-300).reverse();
+      const show = lines.slice().reverse();   // newest first — WHOLE file, no cap
       box.innerHTML = ''
 
         + '<div class="card" style="padding:0;overflow:hidden">'
-        +   '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd)"><b>📄 '+esc(logDayCur)+'</b><button class="btn sm ghost" onclick="logDownloadDay()">⬇ Save</button></div>'
+        +   '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd)"><b>📄 '+esc(logDayCur)+'</b><span class="sm dim">'+lines.length+' lines</span><button class="btn btn-sm ghost" onclick="logDownloadDay()">⬇ Save</button></div>'
         +   '<div style="height:46vh;overflow-y:auto"><pre style="padding:10px 12px;font-size:12px;line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word">'+show.map(function(ln){ return kl(ln); }).join("\n")+'</pre></div>'
         + '</div>';
     }catch(e){ box.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
