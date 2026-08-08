@@ -347,7 +347,7 @@ async function loadOverview(){
       {n:m.revoked!=null?m.revoked:0,l:"Revoked", c:m.revoked?"r":""},
       {n:m.low_battery!=null?m.low_battery:0,l:"Low battery", c:m.low_battery?"r":""},
       {n:(m.avg_health||0).toFixed(1),l:"Avg health %"},
-      {n:(m.storage_free_l!=null?Math.round(m.storage_free_l)+" GB":"—"), l:"Storage free"},
+      {n:(m.free_storage!=null?Math.round(m.free_storage/1024/1024/1024)+" GB":"—"), l:"Storage free"},
     ];
     el("kpis").innerHTML = k.map(kpiCard).join("");
     const rec = (m.recent_audit||[]).slice(0,10);
