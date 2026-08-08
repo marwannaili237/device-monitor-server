@@ -111,6 +111,19 @@ label{font-size:12.5px;color:#8890a0;display:block;margin-bottom:5px}
 </style>
 </head><body>
 
+<!-- login overlay -->
+<div id="loginBox" class="hidden">
+  <div style="max-width:340px;margin:0 auto;padding:60px 20px;text-align:center">
+    <div style="font-size:26px;font-weight:800;margin-bottom:6px">DEVICE<span style="color:#4f8cff">MONITOR</span></div>
+    <div class="dim" style="margin-bottom:22px">Admin console</div>
+    <div class="card">
+      <input type="password" id="pw" placeholder="Admin password" style="width:100%;padding:12px;border-radius:8px;border:1px solid #22262e;background:#0b0d10;color:#e8eaed;box-sizing:border-box">
+      <button id="loginBtn" class="btn" style="width:100%;margin-top:10px" onclick="doLogin()">Sign in</button>
+      <div id="loginErr" class="hidden errmsg"></div>
+    </div>
+  </div>
+</div>
+
 <div id="side">
   <div class="brand">DEVICE<span>MONITOR</span></div>
   <nav>
@@ -206,6 +219,7 @@ function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,
 
 async function api(path, opts){
   opts = opts || {};
+  if(opts.body && !(opts.headers && opts.headers["Content-Type"])) opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
   opts.headers = Object.assign({"Authorization":"Bearer "+token}, opts.headers || {});
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), 30000);
@@ -213,7 +227,7 @@ async function api(path, opts){
     const r = await fetch(path, Object.assign({}, opts, {signal:ctrl.signal}));
     if(r.status===401){ token=""; localStorage.removeItem("dm_token"); showLogin(); throw new Error("session expired"); }
     if(r.status===404) throw new Error("not found");
-    if(!r.ok){ let m=""; try{ m=(await r.json()).detail||""; }catch(e){} throw new Error(m||("HTTP "+r.status)); }
+    if(!r.ok){ let m=""; try{ m=JSON.stringify((await r.json()).detail); }catch(e){} throw new Error(m||("HTTP "+r.status)); }
     clearTimeout(t);
     const ct = r.headers.get("content-type")||"";
     return ct.indexOf("json")>=0 ? r.json() : r;
@@ -238,7 +252,6 @@ function hideLogin(){
   document.getElementById('side')?.classList.remove('hidden');
   document.getElementById('bottomnav')?.classList.remove('hidden');
   document.body.style.padding="0";
-}lass="dim" style="margin-bottom:22px">Admin console</div><div class="card"><input type="password" id="pw" placeholder="Admin password" style="margin-bottom:10px"><button class="btn" style="width:100%" id="loginBtn" onclick="doLogin()">Sign in</button></div><div class="errmsg hidden" id="loginErr"></div></div>';
 }
 function doLogin(){
   const b = el("loginBtn"); b.disabled=true; b.textContent="Signing in…";
@@ -247,9 +260,7 @@ function doLogin(){
     if(!d.token) throw new Error(d.detail||"login failed");
     token = d.token; localStorage.setItem("dm_token", token);
     el("who").textContent = "root ("+(d.role||"admin")+")";
-    el("side").classList.remove("hidden");
-    document.body.style.padding="0"; document.body.style.display="flex";
-    el("sec-overview").classList.remove("hidden");
+    hideLogin();
     buildAll();
   }).catch(e=>{ const er=el("loginErr"); er.classList.remove("hidden"); er.textContent = e.message; });
 }
@@ -260,14 +271,11 @@ function tryDevAutoLogin(){
     if(d && d.token){
       token = d.token; localStorage.setItem("dm_token", token);
       el("who").textContent = "root ("+(d.role||"admin")+") (dev auto-login)";
-      el("side").classList.remove("hidden");
-      document.body.style.padding="0"; document.body.style.display="flex";
       hideLogin();
       buildAll();
     } else { showLogin(); }
   }).catch(()=>{ showLogin(); });
 }
-function hideLogin(){}
 
 function go(name){
   document.querySelectorAll('.sidebtn').forEach(b=>b.classList.toggle('on', b.dataset.s===name));
@@ -333,22 +341,21 @@ function openDevice(id){
   ["overview","devices"].forEach(s=>el("sec-"+s).classList.add("hidden"));
   el("sec-device").classList.remove("hidden");
   el("devTabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.t==="0"));
-  el("devTitle").textContent = "Device "+id.slice(0,8);
+  el("dTitle").textContent = "Device "+id.slice(0,8);
   loadDeviceDetail(id, "0");
 }
 
 async function loadDeviceDetail(id, tab){
   el("dBody").innerHTML = '<div class="dim">Loading…</div>';
   try{
-    const d = await api("/admin/devices/"+encodeURIComponent(id));
+    const d = await api("/admin/devices/"+encodeURIComponent(id)+"/detail");
     el("dTitle").textContent = esc(d.label||d.os_version||id.slice(0,8));
     el("dStatusLine").textContent = (d.model||"") + " · Android " + (d.os_version||"") + " · " + (d.status||"") + (d.battery_pct!=null ? " · 🔋 "+d.battery_pct+"%" : "");
     renderDeviceTab(d, tab);
   }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
-function setTab(dir){ }
-function devTab(t){ curTab=t; el("devTabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.t===t)); loadDeviceDetail(cur, t); }
 
+function setTab(dir){ }
 async function renderDeviceTab(d,t){
   el("dBody").innerHTML='';
   if(t==="0"){ el("dBody").innerHTML = infoHtml(d); }
@@ -415,7 +422,10 @@ async function fileList(er){
   if(er){ list.innerHTML = '<div class="errmsg">'+esc(er.message)+'</div>'; return; }
   try{
     const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/content?path="+encodeURIComponent(filePath), {headers:{"Authorization":"Bearer "+token}});
-    if(!r.ok){ throw new Error("HTTP "+r.status); }
+    if(!r.ok){
+      if(r.status===404){ list.innerHTML = '<div class="dim">No listing for this folder yet — the device only uploads folders it has scanned. If the device is on, tap ↻ Refresh in a minute.</div>'; return; }
+      throw new Error("HTTP "+r.status);
+    }
     const txt = await r.text();
     let data = txt;
     try{ data = JSON.parse(txt); }catch(e){}
@@ -570,7 +580,7 @@ async function sendAction(act, label, needsConfirm){
   if(needsConfirm && !confirm(label+" on "+cur.slice(0,8)+"?")) return;
   el("dMsg").className=""; el("dMsg").textContent="Sending…";
   try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/"+act, {method:"POST", body:"{}"}); flash(label+" sent — device reacts on next check-in."); }
-  catch(e){ flash(label+": "+e.message, true); }
+  catch(e){ flash(label+": "+(e&&e.message?e.message:JSON.stringify(e)), true); }
 }
 function confirmWipe(){
   if(!confirm("⚠️ WIPE this device — factory reset, ALL data erased?")) return;
@@ -594,17 +604,13 @@ function devTab(t){
 async function loadDeviceAppsFromServer(){
   el("dBody").innerHTML = '<div class="dim">Loading…</div>';
   try{
-    const d = await api("/admin/devices/"+encodeURIComponent(cur));
+    const d = await api("/admin/devices/"+encodeURIComponent(cur)+"/detail");
     loadDeviceAppsView(d);
   }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
 async function loadGlobalApps(){
-  el("appsBody").innerHTML = '<div class="dim">Loading…</div>';
-  try{
-    const d = await api("/admin/apps");
-    el("appsBody").innerHTML = '<div class="dim">Tap a device in <b>Devices</b> → <b>Apps</b> to see and manage its apps, push APKs, or uninstall them.</div>';
-  }catch(e){ el("appsBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
+  el("appsBody").innerHTML = '<div class="dim">Tap a device in <b>Devices</b> → <b>Apps</b> to see and manage its apps, push APKs, or uninstall them.</div>';
 }
 
 /* ================= GLOBAL: AUDIT ================= */
@@ -625,10 +631,11 @@ async function loadSettings(){
   try{
     const s = await api("/admin/settings");
     const wh = s.work_hours || {};
+    const active = wh.active || String(s.work_active||"").trim()==="1" ? true : false;
     el("whForm").innerHTML
       = '<div class="dim" style="margin-bottom:10px">Click to toggle. No forms, no commands.</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">'
-      + '<button class="opt '+(wh.active?"on":"")+'" onclick="toggleSetting(\'work_active\', '+(wh.active?0:1)+')"><span class="big">🕘</span>Work hours gating<br><span class="dim sm">'+((wh.active?"On — location only in work hours":"Off — always record location")||"")+'</span></button>'
+      + '<button class="opt '+(active?"on":"")+'" onclick="toggleSetting(\'work_active\', '+(active?0:1)+')"><span class="big">🕘</span>Work hours gating<br><span class="dim sm">'+((active?"On — location only in work hours":"Off — always record location")||"")+'</span></button>'
       + '</div><div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">'
       + '<button class="opt" onclick="flash(\'Coming soon: automatic install of approved APKs\')"><span class="big">📦</span>Silent install<br><span class="dim sm">Coming soon</span></button>'
       + '<button class="opt" onclick="flash(\'Coming soon: kiosk lock a device to one app\')"><span class="big">🔐</span>Kiosk mode<br><span class="dim sm">Coming soon</span></button>'
@@ -638,7 +645,7 @@ async function loadSettings(){
   }catch(e){ el("whForm").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 async function toggleSetting(k,v){
-  try{ await api("/admin/settings", {method:"POST", body: JSON.stringify({work_hours:{[k]:v}})}); loadSettings(); }
+  try{ await api("/admin/settings", {method:"POST", body: JSON.stringify({[k]: String(v)})}); loadSettings(); }
   catch(e){ flash(e.message, true); }
 }
 

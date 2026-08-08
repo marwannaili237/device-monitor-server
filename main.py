@@ -366,6 +366,14 @@ def health():
     return {"ok": True}
 
 
+@app.get("/admin/me")
+def admin_me(admin: dict = Depends(get_admin)):
+    try:
+        return {"role": admin["role"], "username": admin["username"]}
+    except (KeyError, TypeError):
+        return {"role": "admin", "username": "root"}
+
+
 @app.post("/admin/login")
 def admin_login(body: dict = Body(...)):
     with db() as conn:
