@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e14">
+<title>Work Monitor — Console</title>
+<style>
+:root{
+  --bg:#0a0e14; --bg2:#0e1420; --card:#121a2b; --card2:#172136; --bord:#1e2b4a;
+  --txt:#e4ecf7; --mut:#8a99b8; --dim:#54628a;
+  --acc:#5b8cff; --acc2:#7aa5ff;
+  --ok:#2dd4a7; --warn:#f5b83d; --bad:#ff5c6e; --info:#38bdf8;
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:15.5px}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;overscroll-behavior:none}
+h1,h2,h3{font-weight:600;letter-spacing:.01em}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--txt);background:var(--bg2);border:1px solid var(--bord);border-radius:10px;padding:.55rem .7rem;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#223050;border-radius:4px}
+a{color:var(--acc)}
+
+/* ============ LOGIN ============ */
+#loginView{flex:1;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.login-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--bord);border-radius:20px;padding:2rem 1.6rem;box-shadow:0 24px 60px #0009}
+.logo{display:flex;align-items:center;gap:.7rem;margin-bottom:1.6rem;justify-content:center}
+.logo-mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--acc),#9d5bff);display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px #5b8cff44}
+.logo-name{font-size:1.15rem;font-weight:700;letter-spacing:.02em}
+.logo-sub{font-size:.72rem;color:var(--mut);letter-spacing:.14em;text-transform:uppercase}
+.login-card label{display:block;font-size:.78rem;color:var(--mut);margin:.9rem 0 .3rem;text-transform:uppercase;letter-spacing:.08em}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;background:var(--acc);color:#fff;border:none;border-radius:10px;padding:.6rem 1rem;font-weight:600;transition:filter .15s, transform .05s;width:100%}
+.btn:hover{filter:brightness(1.12)} .btn:active{transform:scale(.98)}
+.btn.block{margin-top:1.2rem;padding:.75rem}
+.btn.ghost{background:transparent;border:1px solid var(--bord);color:var(--txt);font-weight:500}
+.btn.danger{background:var(--bad)} .btn.warn{background:var(--warn);color:#221a05}
+.btn.ok{background:var(--ok);color:#04241c}
+.btn.sm{width:auto;padding:.42rem .8rem;font-size:.85rem;border-radius:9px}
+.login-err{color:var(--bad);font-size:.85rem;margin-top:.8rem;min-height:1.2em;text-align:center}
+.demo-hint{text-align:center;font-size:.78rem;color:var(--dim);margin-top:1rem}
+
+/* ============ APP SHELL ============ */
+#app{flex:1;display:none;flex-direction:column;max-width:1060px;width:100%;margin:0 auto}
+header.top{display:flex;align-items:center;gap:.8rem;padding:.9rem 1rem .6rem}
+.top .ttl{font-weight:700;font-size:1.06rem;display:flex;align-items:center;gap:.55rem}
+.top .ttl .logo-mark{width:30px;height:30px;font-size:1rem;border-radius:9px}
+.who{margin-left:auto;display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--mut)}
+.who .role{background:var(--card2);border:1px solid var(--bord);padding:.18rem .55rem;border-radius:20px;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase}
+.icon-btn{background:var(--card);border:1px solid var(--bord);color:var(--txt);border-radius:9px;padding:.35rem .6rem;font-size:.85rem;line-height:1}
+.icon-btn:hover{border-color:var(--acc)}
+
+main{flex:1;padding:.2rem 1rem 5.5rem;position:relative}
+.view{display:none;animation:fade .18s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin:.6rem 0 1rem}
+@media(min-width:760px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);padding:.85rem .95rem;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--kc,var(--acc))}
+.kpi .n{font-size:1.5rem;font-weight:700;line-height:1.1}
+.kpi .l{font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem}
+.card{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);padding:.95rem 1rem;margin-bottom:.9rem}
+.card>h3{font-size:.95rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem}
+.card>h3 .tag{margin-left:auto}
+
+/* pills + chips */
+.pill{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:600;padding:.16rem .55rem;border-radius:20px;border:1px solid transparent;letter-spacing:.03em}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{color:var(--ok);border-color:#2dd4a744;background:#2dd4a714}
+.pill.off{color:var(--mut);border-color:#8a99b833;background:#8a99b810}
+.pill.rev{color:var(--bad);border-color:#ff5c6e44;background:#ff5c6e14}
+.pill.warn{color:var(--warn);border-color:#f5b83d44;background:#f5b83d14}
+.pill.info{color:var(--info);border-color:#38bdf844;background:#38bdf814}
+.chip{display:inline-block;background:var(--card2);border:1px solid var(--bord);border-radius:8px;padding:.14rem .5rem;font-size:.76rem;color:var(--mut);margin:.12rem .18rem .12rem 0}
+.chip.bad{color:var(--bad);border-color:#ff5c6e55;background:#ff5c6e12}
+
+/* device list */
+.dev{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);padding:.8rem .95rem;margin-bottom:.7rem;display:flex;align-items:center;gap:.8rem;cursor:pointer;transition:border-color .15s}
+.dev:hover{border-color:var(--acc)}
+.dev .avatar{width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:1.15rem;flex-shrink:0;border:1px solid var(--bord)}
+.dev .inf{min-width:0;flex:1}
+.dev .nm{font-weight:600;font-size:.94rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev .sub{font-size:.76rem;color:var(--mut);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev .meta{text-align:right;flex-shrink:0;display:flex;flex-direction:column;gap:.3rem;align-items:flex-end}
+.dev .bat{font-size:.76rem;color:var(--mut)}
+.empty{color:var(--dim);text-align:center;padding:2.2rem 0;font-size:.88rem}
+.spin{color:var(--dim);text-align:center;padding:1.5rem;font-size:.85rem}
+.spin::before{content:"◌";display:inline-block;animation:rot 1s linear infinite;margin-right:.5rem;font-size:1rem}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{font-size:.7rem;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--bord)}
+td{padding:.45rem .5rem;border-bottom:1px solid #1a2438;vertical-align:top;word-break:break-word}
+tr:last-child td{border-bottom:none}
+.tblwrap{overflow-x:auto}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem}
+
+/* bottom nav */
+nav.bottom{position:fixed;left:0;right:0;bottom:0;display:flex;background:#0d1220f2;backdrop-filter:blur(12px);border-top:1px solid var(--bord);padding:.35rem .5rem calc(.35rem + env(safe-area-inset-bottom));z-index:50;justify-content:space-around}
+nav.bottom button{background:none;border:none;color:var(--mut);font-size:.68rem;display:flex;flex-direction:column;align-items:center;gap:.18rem;padding:.3rem .8rem;border-radius:10px;letter-spacing:.03em}
+nav.bottom button .ic{font-size:1.2rem;line-height:1}
+nav.bottom button.on{color:var(--acc2)}
+nav.bottom button.on .ic{filter:drop-shadow(0 0 8px #5b8cff88)}
+
+/* device drawer */
+#drawer{position:fixed;inset:0;z-index:90;display:none}
+#drawer.on{display:block}
+#drawer .scrim{position:absolute;inset:0;background:#000a;backdrop-filter:blur(3px)}
+#drawer .sheet{position:absolute;inset:0;background:var(--bg);overflow-y:auto;padding:1rem 1rem calc(1.5rem + env(safe-area-inset-bottom));animation:slideUp .22s ease}
+@media(min-width:900px){
+  #drawer .sheet{left:240px;border-left:1px solid var(--bord);box-shadow:-30px 0 80px #000}
+}
+@keyframes slideUp{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
+.dhead{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem;position:sticky;top:-1rem;background:linear-gradient(var(--bg) 75%,transparent);padding:1rem 0 .7rem;z-index:5}
+.dhead .avatar{width:48px;height:48px;border-radius:13px;background:var(--card2);display:grid;place-items:center;font-size:1.5rem;border:1px solid var(--bord)}
+.dhead .nm{font-weight:700;font-size:1.08rem}
+.dhead .id{font-size:.72rem;color:var(--dim);font-family:ui-monospace,monospace}
+.dhead .x{margin-left:auto}
+.cmd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.55rem;margin-bottom:1rem}
+.cmd-grid .btn{padding:.7rem .2rem;font-size:.74rem;flex-direction:column;gap:.3rem;border-radius:12px;font-weight:600}
+.cmd-grid .btn .ic{font-size:1.15rem}
+@media(min-width:700px){.cmd-grid{grid-template-columns:repeat(8,1fr)}}
+.sect-t{font-size:.74rem;color:var(--mut);text-transform:uppercase;letter-spacing:.12em;margin:1.1rem 0 .5rem;display:flex;align-items:center;gap:.5rem}
+.sect-t::after{content:"";flex:1;height:1px;background:var(--bord)}
+.kv{display:flex;justify-content:space-between;gap:1rem;padding:.32rem 0;border-bottom:1px dashed #1a2438;font-size:.84rem}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--mut);flex-shrink:0}
+.kv .v{text-align:right;word-break:break-all}
+.bar{height:8px;border-radius:5px;background:var(--bg2);overflow:hidden;margin:.3rem 0 .6rem}
+.bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--acc),#9d5bff)}
+pre.logbox{background:var(--bg2);border:1px solid var(--bord);border-radius:11px;padding:.8rem;font-size:.74rem;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;color:#b8c6e2}
+.logitem{display:flex;align-items:center;gap:.6rem;background:var(--card2);border:1px solid var(--bord);border-radius:10px;padding:.55rem .75rem;margin-bottom:.45rem;cursor:pointer;font-size:.85rem}
+.logitem:hover{border-color:var(--acc)}
+.logitem .sz{margin-left:auto;color:var(--dim);font-size:.75rem;flex-shrink:0}
+.row{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center}
+.row>*{flex:1;min-width:0}
+.muted{color:var(--mut);font-size:.82rem}
+.loc{width:100%;height:auto;border:1px solid var(--bord);border-radius:12px;background:var(--card2)}
+.toast{position:fixed;left:50%;bottom:5.2rem;transform:translateX(-50%);background:var(--card2);border:1px solid var(--bord);color:var(--txt);padding:.6rem 1.1rem;border-radius:12px;font-size:.86rem;z-index:200;box-shadow:0 10px 40px #000a;animation:fade .2s;max-width:88vw;text-align:center}
+.toast.err{border-color:#ff5c6e66}
+.foot{text-align:center;color:var(--dim);font-size:.7rem;padding:1rem 0 .4rem;letter-spacing:.1em;text-transform:uppercase}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginView">
+  <div class="login-card">
+    <div class="logo">
+      <div class="logo-mark">📡</div>
+      <div><div class="logo-name">Work Monitor</div><div class="logo-sub">Admin Console</div></div>
+    </div>
+    <label>Username</label>
+    <input id="lu" autocomplete="username" placeholder="root">
+    <label>Password</label>
+    <input id="lp" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button class="btn block" id="loginBtn" onclick="doLogin()">Sign in</button>
+    <div class="login-err" id="lerr"></div>
+    <div class="demo-hint" id="devHint" style="display:none"><a href="javascript:devLogin()">⚡ dev quick-login (DEV_MODE)</a></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header class="top">
+    <div class="ttl"><span class="logo-mark">📡</span> Work Monitor</div>
+    <div class="who">
+      <span class="role" id="meRole">…</span><span id="meName"></span>
+      <button class="icon-btn" onclick="boot()" title="Refresh">⟳</button>
+      <button class="icon-btn" onclick="logout()" title="Sign out">⏻</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="v-overview" class="view">
+      <div class="kpis" id="kpis"></div>
+      <div class="card"><h3>Health & Storage <span class="tag muted" id="healthAvg"></span></h3><div id="storBox"></div></div>
+      <div class="card"><h3>Policy violations</h3><div id="violBox" class="tblwrap"></div></div>
+      <div class="card"><h3>Recent admin activity</h3><div id="recAudit" class="tblwrap"></div></div>
+    </section>
+
+    <!-- DEVICES -->
+    <section id="v-devices" class="view">
+      <div class="row" style="margin:.5rem 0 .8rem">
+        <input id="devSearch" placeholder="🔍 filter devices…" oninput="renderDevices()">
+      </div>
+      <div id="devList"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="v-settings" class="view">
+      <div class="card">
+        <h3>Server settings <span class="tag pill info">root</span></h3>
+        <div id="setBox"></div>
+        <div style="margin-top:.7rem"><button class="btn sm ok" onclick="saveSettings()">Save settings</button></div>
+      </div>
+      <div class="card">
+        <h3>Create sub-admin <span class="tag pill info">root</span></h3>
+        <div class="row"><input id="naU" placeholder="username"><input id="naP" type="password" placeholder="password"></div>
+        <div class="row" style="margin-top:.55rem">
+          <select id="naRole"><option value="site_admin">site_admin</option><option value="root">root</option></select>
+          <input id="naSite" placeholder="site id (optional)">
+        </div>
+        <div style="margin-top:.7rem"><button class="btn sm" onclick="createAdmin()">Create admin</button></div>
+      </div>
+    </section>
+
+    <!-- AUDIT -->
+    <section id="v-audit" class="view">
+      <div class="card"><h3>Audit log <span class="tag muted">latest 200</span></h3><div id="auditBox" class="tblwrap"></div></div>
+    </section>
+  </main>
+
+  <nav class="bottom">
+    <button data-v="v-overview" class="on" onclick="showView('v-overview',this)"><span class="ic">📊</span>Overview</button>
+    <button data-v="v-devices" onclick="showView('v-devices',this)"><span class="ic">📱</span>Devices</button>
+    <button data-v="v-settings" onclick="showView('v-settings',this)"><span class="ic">⚙️</span>Settings</button>
+    <button data-v="v-audit" onclick="showView('v-audit',this)"><span class="ic">🧾</span>Audit</button>
+  </nav>
+</div>
+
+<!-- ================= DEVICE SHEET ================= -->
+<div id="drawer">
+  <div class="scrim" onclick="closeDev()"></div>
+  <div class="sheet" id="sheet">
+    <div class="dhead">
+      <div class="avatar">📱</div>
+      <div style="min-width:0"><div class="nm" id="dName">…</div><div class="id" id="dId"></div><div id="dPills" style="margin-top:.3rem"></div></div>
+      <button class="icon-btn x" onclick="closeDev()">✕</button>
+    </div>
+    <div id="devBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var token = localStorage.getItem("dm_token") || "";
+var me = {role:"",username:""};
+var devices = [], met = null;
+var cur = null, curDetail = null, locPath = "/sdcard";
+
+/* ---------- API ---------- */
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({"Authorization":"Bearer "+token}, opts.headers||{});
+  if(opts.body && typeof opts.body === "string") opts.headers["Content-Type"]="application/json";
+  var r;
+  try{ r = await fetch(path, opts); }
+  catch(e){ toast("network error", true); throw e; }
+  if(r.status===401){ token=""; localStorage.removeItem("dm_token"); showLogin(); throw new Error("session expired"); }
+  if(!r.ok){
+    var t=""; try{ var j=await r.json(); t=j.detail||JSON.stringify(j);}catch(e){ t="HTTP "+r.status; }
+    toast(t, true); throw new Error(t);
+  }
+  return r.json();
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function fmtTs(s){ if(!s) return "—"; try{ var dt=new Date(s.length>10&&!s.includes("T")?s.replace(" ","T")+"Z":s+(s.includes("Z")?"":"Z")); return dt.toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(e){ return s; } }
+function timeAgo(s){ if(!s) return "never"; try{ var dt=new Date(s.includes("Z")?s:s.replace(" ","T")+"Z"); var d=(Date.now()-dt.getTime())/1000; if(d<60) return "just now"; if(d<3600) return Math.floor(d/60)+"m ago"; if(d<86400) return Math.floor(d/3600)+"h ago"; return Math.floor(d/86400)+"d ago"; }catch(e){ return s; } }
+function fmtSize(b){ b=Number(b)||0; if(b>=1e12) return (b/1e12).toFixed(2)+" TB"; if(b>=1e9) return (b/1e9).toFixed(2)+" GB"; if(b>=1e6) return (b/1e6).toFixed(1)+" MB"; if(b>=1e3) return (b/1e3).toFixed(0)+" KB"; return b+" B"; }
+function devName(d){ return d.model || d.device_id.slice(0,8); }
+function statusPill(d){ if(d.status==="revoked") return '<span class="pill rev">REVOKED</span>'; return d.online ? '<span class="pill ok">LIVE</span>' : '<span class="pill off">OFFLINE</span>'; }
+function batStr(pct, charging){ if(pct==null) return "—"; return (charging?"⚡":"")+pct+"%"; }
+function toast(msg, isErr){
+  var t=document.createElement("div"); t.className="toast"+(isErr?" err":""); t.textContent=msg;
+  document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 2600);
+}
+
+/* ---------- auth ---------- */
+function showLogin(){ document.getElementById("loginView").style.display="flex"; document.getElementById("app").style.display="none"; }
+function showApp(){ document.getElementById("loginView").style.display="none"; document.getElementById("app").style.display="flex"; }
+async function doLogin(){
+  var u=document.getElementById("lu").value.trim(), p=document.getElementById("lp").value;
+  document.getElementById("lerr").textContent="";
+  try{
+    var d = await api("/admin/login",{method:"POST",body:JSON.stringify({username:u,password:p})});
+    token=d.token; localStorage.setItem("dm_token",token); me.role=d.role||"root"; me.username=u;
+    showApp(); boot();
+  }catch(e){ document.getElementById("lerr").textContent=e.message||"login failed"; }
+}
+async function devLogin(){
+  try{ var d=await (await fetch("/admin/devlogin")).json(); if(d.token){ token=d.token; localStorage.setItem("dm_token",token); showApp(); boot(); } }
+  catch(e){ toast("dev login disabled", true); }
+}
+function logout(){ token=""; localStorage.removeItem("dm_token"); showLogin(); }
+document.getElementById("lp").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+
+/* ---------- nav ---------- */
+function showView(id, btn){
+  document.querySelectorAll(".view").forEach(function(v){v.classList.remove("on");});
+  document.getElementById(id).classList.add("on");
+  document.querySelectorAll("nav.bottom button").forEach(function(b){b.classList.remove("on");});
+  if(btn) btn.classList.add("on");
+  if(id==="v-settings") loadSettings();
+  if(id==="v-audit") loadAudit();
+}
+
+/* ---------- boot / overview ---------- */
+async function boot(){
+  try{ me = await api("/admin/me"); }catch(e){ me={role:"root",username:"root"}; }
+  document.getElementById("meRole").textContent = me.role||"root";
+  document.getElementById("meName").textContent = me.username||"";
+  var both = await Promise.all([api("/admin/devices"), api("/admin/metrics").catch(function(){return null;})]);
+  devices = both[0].devices||[]; met = both[1];
+  renderKpis(); renderDevices();
+  var isRoot = me.role==="root";
+  document.querySelectorAll('nav.bottom button[data-v="v-settings"],nav.bottom button[data-v="v-audit"]').forEach(function(b){ b.style.display = isRoot?"":"none"; });
+  if(isRoot) loadAudit(true);
+}
+async function renderKpis(){
+  var m = met;
+  var k = [
+    {n: m?m.active:0, l:"Online", c:"var(--ok)"},
+    {n: m?m.offline:0, l:"Offline", c:"var(--mut)"},
+    {n: m?m.low_battery:0, l:"Low battery", c:"var(--warn)"},
+    {n: m?m.revoked:0, l:"Revoked", c:"var(--bad)"}
+  ];
+  document.getElementById("kpis").innerHTML = k.map(function(x){
+    return '<div class="kpi" style="--kc:'+x.c+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>';
+  }).join("");
+  if(m){
+    document.getElementById("healthAvg").textContent = "avg health "+(m.avg_health||0)+"%";
+    var tot=m.total_storage||0, free=m.free_storage||0, used=Math.max(0,tot-free);
+    var pct = tot? Math.round(used/tot*100):0;
+    document.getElementById("storBox").innerHTML =
+      '<div class="row muted" style="justify-content:space-between"><span>Fleet storage used</span><span>'+fmtSize(used)+" / "+fmtSize(tot)+'</span></div>'+
+      '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
+      '<div class="kv"><span class="k">OS versions</span><span class="v">'+
+        Object.keys(m.os_versions||{}).map(function(v){return '<span class="chip">Android '+esc(v)+" ×"+m.os_versions[v]+"</span>";}).join("")+'</span></div>';
+    renderViol(); renderRecent(m.recent_audit||[]);
+  } else {
+    document.getElementById("storBox").innerHTML='<div class="empty">metrics unavailable</div>';
+  }
+}
+function renderViol(){
+  api("/admin/compliance").then(function(d){
+    var bad = (d.devices||[]).filter(function(x){return !x.ok;});
+    if(!bad.length){ document.getElementById("violBox").innerHTML='<div class="empty">✓ all devices compliant</div>'; return; }
+    var h='<table><tr><th>Device</th><th>Issues</th><th>Status</th></tr>';
+    bad.forEach(function(x){
+      h+='<tr style="cursor:pointer" onclick="openDev(\''+esc(x.device_id)+'\')"><td>'+esc(x.model||x.device_id.slice(0,8))+'</td><td>'+
+        x.issues.map(function(i){return '<span class="chip bad">'+esc(i)+"</span>";}).join("")+'</td><td>'+statusPill(x)+'</td></tr>';
+    });
+    document.getElementById("violBox").innerHTML=h+"</table>";
+  }).catch(function(){ document.getElementById("violBox").innerHTML='<div class="empty">unavailable</div>'; });
+}
+function renderRecent(rows){
+  if(!rows.length){ document.getElementById("recAudit").innerHTML='<div class="empty">no admin actions yet</div>'; return; }
+  var h='<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Result</th></tr>';
+  rows.slice(0,30).forEach(function(a){
+    h+="<tr><td>"+fmtTs(a.ts)+"</td><td>"+esc(a.actor)+"</td><td>"+esc(a.action)+"</td><td class='mono'>"+esc((a.target||"").slice(0,12))+"</td><td>"+
+      (a.result==="ok"?'<span class="pill ok">'+esc(a.result)+"</span>":'<span class="pill warn">'+esc(a.result||"—")+"</span>")+"</td></tr>";
+  });
+  document.getElementById("recAudit").innerHTML=h+"</table>";
+}
+
+/* ---------- devices ---------- */
+function renderDevices(){
+  var q=(document.getElementById("devSearch").value||"").toLowerCase();
+  var list=devices.filter(function(d){
+    return !q || (d.model||"").toLowerCase().includes(q) || (d.device_id||"").toLowerCase().includes(q) || (d.manufacturer||"").toLowerCase().includes(q);
+  });
+  if(!list.length){ document.getElementById("devList").innerHTML='<div class="empty">no devices enrolled yet</div>'; return; }
+  document.getElementById("devList").innerHTML = list.map(function(d){
+    return '<div class="dev" onclick="openDev(\''+esc(d.device_id)+'\')">'+
+      '<div class="avatar">📱</div>'+
+      '<div class="inf"><div class="nm">'+esc(devName(d))+'</div>'+
+      '<div class="sub">'+esc([d.manufacturer,d.os_version?("Android "+d.os_version):null].filter(Boolean).join(" · "))+'</div>'+
+      '<div class="sub">'+timeAgo(d.last_seen_at)+'</div></div>'+
+      '<div class="meta">'+statusPill(d)+'<span class="bat">'+batStr(d.battery_pct,d.charging)+'</span></div></div>';
+  }).join("");
+}
+
+/* ---------- device sheet ---------- */
+async function openDev(id){
+  cur=id; curDetail=null; locPath="/sdcard";
+  document.getElementById("drawer").classList.add("on");
+  document.body.style.overflow="hidden";
+  document.getElementById("devBody").innerHTML='<div class="spin">loading device…</div>';
+  try{
+    curDetail = await api("/admin/devices/"+encodeURIComponent(id)+"/detail");
+    renderDev();
+  }catch(e){ document.getElementById("devBody").innerHTML='<div class="empty">failed to load</div>'; }
+}
+function closeDev(){ document.getElementById("drawer").classList.remove("on"); document.body.style.overflow=""; cur=null; }
+
+function renderDev(){
+  var d=curDetail; if(!d) return;
+  document.getElementById("dName").textContent=devName(d);
+  document.getElementById("dId").textContent=d.device_id;
+  document.getElementById("dPills").innerHTML=statusPill(d)+" "+
+    (d.compliance&&d.compliance.length?('<span class="pill warn">'+d.compliance.length+" issue"+(d.compliance.length>1?"s":"")+"</span>"):'<span class="pill ok">compliant</span>');
+
+  var isRoot=me.role==="root";
+  var used=Math.max(0,(d.storage_total||0)-(d.storage_free||0));
+  var pct=d.storage_total?Math.round(used/d.storage_total*100):0;
+
+  var h="";
+  h+='<div class="cmd-grid">'+
+    '<button class="btn" onclick="sendCmd(\'lock\')"><span class="ic">🔒</span>Lock</button>'+
+    '<button class="btn warn" onclick="sendCmd(\'beeper\')"><span class="ic">🔊</span>Beep</button>'+
+    '<button class="btn ok" onclick="sendCmd(\'sync\')"><span class="ic">🔄</span>Sync</button>'+
+    '<button class="btn" onclick="customCmd()"><span class="ic">⌘</span>Custom</button>'+
+    (isRoot?'<button class="btn danger" onclick="sendCmd(\'wipe\')"><span class="ic">💥</span>Wipe</button>':"")+
+    '<button class="btn ghost" onclick="doRevoke()"><span class="ic">🚫</span>'+(d.status==="revoked"?"Restore":"Revoke")+'</button>'+
+    (isRoot?'<button class="btn ghost" onclick="doDelete()"><span class="ic">🗑</span>Delete</button>':"")+
+    '<button class="btn ghost" onclick="openDev(cur)"><span class="ic">⟳</span>Reload</button>'+
+  '</div>';
+
+  h+='<div class="sect-t">Identity</div><div class="card">'+
+    kv("Model", (d.manufacturer||"")+" "+(d.model||""))+
+    kv("Device ID", d.device_id)+
+    kv("Android ID", d.android_id)+
+    kv("OS", (d.os_version?("Android "+d.os_version):"—")+(d.sdk?" (SDK "+d.sdk+")":""))+
+    kv("Build", d.build_number)+
+    kv("Security patch", d.security_patch)+
+    kv("App version", d.app_version)+
+    kv("Enrolled", fmtTs(d.enrolled_at))+
+    kv("Last seen", timeAgo(d.last_seen_at))+
+  '</div>';
+
+  h+='<div class="sect-t">Status</div><div class="card">'+
+    kv("Battery", batStr(d.battery_pct,d.charging))+
+    kv("Charging", d.charging?"yes":"no")+
+    '<div class="kv"><span class="k">Storage</span><span class="v">'+fmtSize(used)+" used / "+fmtSize(d.storage_total)+'</span></div>'+
+    '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
+  '</div>';
+
+  h+='<div class="sect-t">Compliance</div><div class="card">';
+  if(d.compliance&&d.compliance.length) h+=d.compliance.map(function(i){return '<span class="chip bad">'+esc(i)+"</span>";}).join("");
+  else h+='<span class="pill ok">all checks pass</span>';
+  h+='</div>';
+
+  h+='<div class="sect-t">Activity logs</div><div class="card" id="logsBox"><div class="spin">loading…</div></div>';
+
+  h+='<div class="sect-t">File manager</div><div class="card">'+
+    '<div class="row"><input id="fmPath" value="/sdcard" placeholder="/sdcard/Download"><button class="btn sm" style="flex:0 0 auto" onclick="browse()">Browse</button></div>'+
+    '<div id="fmBox" class="muted" style="margin-top:.5rem">enter a path and tap Browse — the device uploads the listing on next sync.</div></div>';
+
+  h+='<div class="sect-t">Push file / install APK</div><div class="card">'+
+    '<div class="row"><input id="pushDest" placeholder="/sdcard/Download/file.bin"><button class="btn sm" style="flex:0 0 auto" onclick="pickPush()">Push file</button></div>'+
+    '<div class="row" style="margin-top:.5rem"><input id="srcApkHost" readonly placeholder="select APK to install…"><button class="btn sm warn" style="flex:0 0 auto" onclick="pickApk()">Install APK</button></div>'+
+    '<input type="file" id="pushFile" style="display:none" onchange="doPush()">'+
+    '<input type="file" id="apkFile" accept=".apk" style="display:none" onchange="doInstallApk()">'+
+  '</div>';
+
+  h+='<div class="sect-t">Location</div><div class="card" id="locBox"><div class="spin">loading…</div></div>';
+
+  h+='<div class="sect-t">Installed apps <span class="muted" style="text-transform:none;letter-spacing:0">'+(d.apps||[]).length+'</span></div>';
+  h+='<div class="card" style="max-height:280px;overflow:auto">';
+  (d.apps||[]).forEach(function(a){
+    h+='<div class="kv"><span class="k" style="color:var(--txt)">'+esc(a.label||a.package)+'</span><span class="v mono" style="color:var(--dim)">'+esc(a.package)+'</span>'+
+       '<button class="icon-btn" style="margin-left:.5rem" onclick="uninstallApp(\''+esc(a.package)+'\')">🗑</button></div>';
+  });
+  if(!(d.apps||[]).length) h+='<div class="empty">no app inventory yet</div>';
+  h+='</div>';
+
+  h+='<div class="sect-t">Policy</div><div class="card">'+
+    '<div class="row"><input id="polPin" type="number" min="0" placeholder="min PIN length"><input id="polLock" type="number" min="0" placeholder="auto-lock (sec)"></div>'+
+    '<div class="row" style="margin-top:.5rem"><select id="polCam"><option value="">camera: unchanged</option><option value="true">disable camera</option><option value="false">allow camera</option></select><button class="btn sm" style="flex:0 0 auto" onclick="savePolicy()">Apply policy</button></div>';
+  if(d.policy) h+='<div class="muted" style="margin-top:.5rem">current: <span class="mono">'+esc(JSON.stringify(d.policy))+'</span></div>';
+  h+='</div>';
+
+  h+='<div class="sect-t">Geofence</div><div class="card">'+
+    '<div class="row"><input id="gfName" placeholder="zone name"><input id="gfLat" placeholder="lat"><input id="gfLng" placeholder="lng"><input id="gfRad" type="number" placeholder="radius m" value="500"></div>'+
+    '<div style="margin-top:.55rem"><button class="btn sm" onclick="saveGeofence()">Add geofence</button></div>'+
+    '<div id="gfList" style="margin-top:.5rem">'+
+      (d.geofences||[]).map(function(g){
+        return '<div class="kv"><span class="k" style="color:var(--txt)">'+esc(g.name)+'</span><span class="v mono" style="color:var(--dim)">'+g.lat+","+g.lng+" · "+g.radius_m+'m</span>'+
+        '<button class="icon-btn" style="margin-left:.5rem" onclick="delGeofence('+g.id+')">✕</button></div>';
+      }).join("")+
+    '</div></div>';
+
+  h+='<div class="sect-t">Pending commands</div><div class="card">';
+  (d.commands||[]).forEach(function(c){ h+='<div class="kv"><span class="k" style="color:var(--txt)">'+esc(c.cmd)+'</span><span class="v muted">'+fmtTs(c.created_at)+(c.param?" · "+esc(c.param.slice(0,40)):"")+'</span></div>'; });
+  if(!(d.commands||[]).length) h+='<div class="empty">no queued commands</div>';
+  h+='</div>';
+
+  h+='<div class="sect-t">Device audit</div><div class="card tblwrap"><table><tr><th>When</th><th>Actor</th><th>Action</th><th>Result</th></tr>';
+  (d.audit||[]).forEach(function(a){ h+="<tr><td>"+fmtTs(a.ts)+"</td><td>"+esc(a.actor)+"</td><td>"+esc(a.action)+(a.reason?' <span class="muted">('+esc(a.reason)+")</span>":"")+"</td><td>"+esc(a.result||"—")+"</td></tr>"; });
+  if(!(d.audit||[]).length) h+='<tr><td colspan="4" class="empty">no actions yet</td></tr>';
+  h+='</table></div>';
+
+  document.getElementById("devBody").innerHTML=h;
+  loadLogs(); loadLocs();
+}
+function kv(k,v){ return '<div class="kv"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v==null||v===""?"—":v)+'</span></div>'; }
+
+/* ---------- device actions ---------- */
+async function sendCmd(cmd, extra){
+  var reason=null;
+  if(cmd==="lock"||cmd==="wipe"){ reason=prompt("Reason (optional):"); if(reason===null) return; }
+  if(cmd==="wipe" && !confirm("FULL WIPE this device? This is destructive.")) return;
+  try{
+    await api("/admin/devices/"+encodeURIComponent(cur)+"/"+cmd,{method:"POST",body:JSON.stringify(extra||{reason:reason||undefined})});
+    toast(cmd+" queued"); openDev(cur);
+  }catch(e){}
+}
+async function customCmd(){
+  var c=prompt("Command (lock / wipe / beeper / sync / restrict_apps / kiosk):"); if(!c) return;
+  var p=prompt("Parameter (optional):")||"";
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/command",{method:"POST",body:JSON.stringify({cmd:c,param:p})}); toast(c+" queued"); openDev(cur); }catch(e){}
+}
+async function doRevoke(){
+  var d=curDetail, act=d.status==="revoked"?"restore":"revoke";
+  if(!confirm(act.toUpperCase()+" "+devName(d)+"?")) return;
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/"+act,{method:"POST"}); toast(act+"d"); boot(); openDev(cur); }catch(e){}
+}
+async function doDelete(){
+  if(!confirm("DELETE this device and ALL its data?")) return;
+  try{ await api("/admin/devices/"+encodeURIComponent(cur),{method:"DELETE"}); toast("deleted"); closeDev(); boot(); }catch(e){}
+}
+
+/* ---------- logs ---------- */
+async function loadLogs(){
+  try{
+    var d=await api("/admin/devices/"+encodeURIComponent(cur)+"/logs");
+    var box=document.getElementById("logsBox"); if(!box) return;
+    if(!d.logs.length){ box.innerHTML='<div class="empty">no logs uploaded yet</div>'; return; }
+    d.logs.sort(function(a,b){return (b.log_date>a.log_date)?1:-1;});
+    box.innerHTML=d.logs.map(function(l){
+      return '<div class="logitem" onclick="viewLog(\''+esc(l.log_date)+'\')">🗒 <span class="mono">'+esc(l.log_date)+'</span><span class="sz">'+fmtSize(l.size)+'</span></div>';
+    }).join("");
+    viewLog(d.logs[0].log_date);
+  }catch(e){ var b=document.getElementById("logsBox"); if(b) b.innerHTML='<div class="empty">unavailable</div>'; }
+}
+async function viewLog(dt){
+  var box=document.getElementById("logsBox"); if(!box) return;
+  var old=box.querySelector("pre"); if(old) old.remove();
+  var p=document.createElement("pre"); p.className="logbox"; p.style.marginTop=".6rem"; p.textContent="loading…";
+  box.appendChild(p);
+  try{
+    var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(dt)+"/content",{headers:{"Authorization":"Bearer "+token}});
+    p.textContent = r.ok ? (await r.text()) : ("HTTP "+r.status);
+    p.scrollTop=p.scrollHeight;
+  }catch(e){ p.textContent="failed to load"; }
+}
+
+/* ---------- file manager ---------- */
+async function browse(){
+  locPath=document.getElementById("fmPath").value.trim()||"/sdcard";
+  var box=document.getElementById("fmBox");
+  box.innerHTML='<div class="spin">requesting listing…</div>';
+  try{
+    await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(locPath));
+    box.innerHTML='<div class="muted">listing requested — device uploads it on next pulse. <a href="javascript:showFiles()">check now</a></div>';
+  }catch(e){ box.innerHTML='<div class="empty">request failed</div>'; }
+}
+async function showFiles(){
+  var box=document.getElementById("fmBox");
+  try{
+    var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/content?path="+encodeURIComponent(locPath),{headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok){ box.innerHTML='<div class="muted">not received yet — wait a pulse cycle and <a href="javascript:showFiles()">retry</a></div>'; return; }
+    var lines=(await r.text()).split("\n").filter(function(x){return x.trim();});
+    var h='<div style="margin-top:.4rem">';
+    lines.slice(0,300).forEach(function(line){
+      var isDir=/^d|\[d\]|\/$/.test(line);
+      var name=line.replace(/^[d\-rwx\.]+\s+/,"").split(/\s{2,}/).pop()||line;
+      h+='<div class="logitem" style="padding:.4rem .6rem">'+(isDir?"📁":"📄")+' <span class="mono" style="font-size:.74rem">'+esc(name)+'</span>'+
+         (isDir?"":'<button class="icon-btn" style="margin-left:auto" title="Download" onclick="dlFile(\''+esc(locPath.replace(/\/$/,"")+"/"+name.replace(/'/g,"\\'"))+'\')">⬇</button>')+'</div>';
+    });
+    box.innerHTML=h+"</div>";
+  }catch(e){ box.innerHTML='<div class="empty">failed to load</div>'; }
+}
+function dlFile(path){
+  var a=document.createElement("a");
+  a.href="/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path);
+  fetch(a.href,{headers:{"Authorization":"Bearer "+token}}).then(function(r){
+    if(!r.ok){ toast("file not pulled yet — queue a raw pull first or wait", true); return; }
+    return r.blob().then(function(b){ var u=URL.createObjectURL(b); a.href=u; a.download=path.split("/").pop()||"file"; a.click(); setTimeout(function(){URL.revokeObjectURL(u);},4000); });
+  });
+}
+function pickPush(){ document.getElementById("pushFile").click(); }
+async function doPush(){
+  var f=document.getElementById("pushFile").files[0]; if(!f) return;
+  var dest=document.getElementById("pushDest").value.trim()||("/sdcard/Download/"+f.name);
+  var fd=new FormData(); fd.append("path",dest); fd.append("content",f);
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files/push",{method:"POST",body:fd,headers:{"Authorization":"Bearer "+token}}); toast("push queued → "+dest); }catch(e){}
+  document.getElementById("pushFile").value="";
+}
+function pickApk(){ document.getElementById("apkFile").click(); }
+async function doInstallApk(){
+  var f=document.getElementById("apkFile").files[0]; if(!f) return;
+  var fd=new FormData(); fd.append("content",f);
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/install",{method:"POST",body:fd,headers:{"Authorization":"Bearer "+token}}); toast("APK install queued: "+f.name); }catch(e){}
+  document.getElementById("apkFile").value="";
+}
+async function uninstallApp(pkg){
+  if(!confirm("Uninstall "+pkg+" on device?")) return;
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/uninstall",{method:"POST",body:JSON.stringify({package:pkg})}); toast("uninstall queued"); }catch(e){}
+}
+
+/* ---------- location ---------- */
+async function loadLocs(){
+  try{
+    var d=await api("/admin/devices/"+encodeURIComponent(cur)+"/locations");
+    var box=document.getElementById("locBox"); if(!box) return;
+    if(!d.locations.length){ box.innerHTML='<div class="empty">no location history yet</div>'; return; }
+    var pts=d.locations, latest=pts[0];
+    var h=kv("Latest", latest.lat+", "+latest.lng)+kv("Updated", timeAgo(latest.ts))+kv("Points", pts.length);
+    // dot-plot
+    var lats=pts.map(function(p){return p.lat;}), lngs=pts.map(function(p){return p.lng;});
+    var mnLa=Math.min.apply(null,lats), mxLa=Math.max.apply(null,lats), mnLn=Math.min.apply(null,lngs), mxLn=Math.max.apply(null,lngs);
+    var W=680,H=340,pad=26, xr=(mxLn-mnLn)||0.001, yr=(mxLa-mnLa)||0.001;
+    h+='<svg class="loc" viewBox="0 0 '+W+" "+H+'" style="margin-top:.6rem">';
+    h+='<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="none"/>';
+    pts.slice().reverse().forEach(function(p,i){
+      var x=pad+(p.lng-mnLn)/xr*(W-2*pad), y=H-pad-(p.lat-mnLa)/yr*(H-2*pad);
+      var last=i===pts.length-1;
+      h+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+(last?7:3.5)+'" fill="'+(last?"#2dd4a7":"#5b8cff99")+'"/>';
+    });
+    h+="</svg>";
+    h+='<div class="muted" style="margin-top:.5rem"><a href="https://www.openstreetmap.org/?mlat='+latest.lat+"&mlon="+latest.lng+'#map=16/'+latest.lat+"/"+latest.lng+'" target="_blank">open in OpenStreetMap ↗</a></div>';
+    h+='<div class="tblwrap" style="margin-top:.5rem;max-height:200px;overflow:auto"><table><tr><th>When</th><th>Lat</th><th>Lng</th><th>Speed</th></tr>';
+    pts.slice(0,40).forEach(function(p){ h+="<tr><td>"+fmtTs(p.ts)+"</td><td>"+p.lat+"</td><td>"+p.lng+"</td><td>"+(p.speed||"—")+"</td></tr>"; });
+    box.innerHTML=h+"</table></div>";
+  }catch(e){ var b=document.getElementById("locBox"); if(b) b.innerHTML='<div class="empty">unavailable</div>'; }
+}
+
+/* ---------- policy / geofence ---------- */
+async function savePolicy(){
+  var pol={};
+  var pin=document.getElementById("polPin").value, lk=document.getElementById("polLock").value, cam=document.getElementById("polCam").value;
+  if(pin!=="") pol.password_min_length=parseInt(pin,10);
+  if(lk!=="") pol.max_time_to_lock=parseInt(lk,10)*1000;
+  if(cam!=="") pol.camera_disabled=(cam==="true");
+  if(!Object.keys(pol).length){ toast("nothing to apply", true); return; }
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/policy",{method:"POST",body:JSON.stringify({policy:pol})}); toast("policy saved"); openDev(cur); }catch(e){}
+}
+async function saveGeofence(){
+  var b={name:document.getElementById("gfName").value||"zone",
+         lat:parseFloat(document.getElementById("gfLat").value),
+         lng:parseFloat(document.getElementById("gfLng").value),
+         radius_m:parseInt(document.getElementById("gfRad").value||"500",10)};
+  if(isNaN(b.lat)||isNaN(b.lng)){ toast("lat/lng required", true); return; }
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/geofence",{method:"POST",body:JSON.stringify(b)}); toast("geofence added"); openDev(cur); }catch(e){}
+}
+async function delGeofence(id){
+  try{ await api("/admin/geofence/"+id,{method:"DELETE"}); toast("removed"); openDev(cur); }catch(e){}
+}
+
+/* ---------- settings / audit ---------- */
+var setDefs=[["work_start","Work start (HH:MM)"],["work_end","Work end (HH:MM)"],["work_active","Work-hours gating (0/1)"],["location_interval_s","Location interval (s)"],["timezone","Timezone"]];
+async function loadSettings(){
+  try{
+    var s=await api("/admin/settings");
+    document.getElementById("setBox").innerHTML=setDefs.map(function(df){
+      return '<div class="kv"><span class="k">'+df[1]+'</span><input style="max-width:180px;padding:.35rem .55rem;font-size:.84rem" id="set_'+df[0]+'" value="'+esc(s[df[0]]||"")+'"></div>';
+    }).join("");
+  }catch(e){ document.getElementById("setBox").innerHTML='<div class="empty">root only / unavailable</div>'; }
+}
+async function saveSettings(){
+  var body={}; setDefs.forEach(function(df){ var el=document.getElementById("set_"+df[0]); if(el&&el.value!=="") body[df[0]]=el.value; });
+  try{ await api("/admin/settings",{method:"POST",body:JSON.stringify(body)}); toast("settings saved"); }catch(e){}
+}
+async function createAdmin(){
+  var u=document.getElementById("naU").value.trim(), p=document.getElementById("naP").value;
+  if(!u||!p){ toast("username + password required", true); return; }
+  try{
+    await api("/admin/setup/admin",{method:"POST",body:JSON.stringify({username:u,password:p,role:document.getElementById("naRole").value,site_id:document.getElementById("naSite").value||null})});
+    toast("admin created"); document.getElementById("naU").value=""; document.getElementById("naP").value="";
+  }catch(e){}
+}
+async function loadAudit(){
+  try{
+    var d=await api("/admin/audit");
+    var box=document.getElementById("auditBox"); if(!box) return;
+    if(!d.audit.length){ box.innerHTML='<div class="empty">no audit entries</div>'; return; }
+    var h='<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Result</th><th>Reason</th></tr>';
+    d.audit.forEach(function(a){
+      h+="<tr><td>"+fmtTs(a.ts)+"</td><td>"+esc(a.actor)+"</td><td>"+esc(a.action)+'</td><td class="mono">'+esc((a.target||"").slice(0,14))+"</td><td>"+
+        (a.result==="ok"?'<span class="pill ok">ok</span>':'<span class="pill warn">'+esc(a.result||"—")+"</span>")+"</td><td class='muted'>"+esc(a.reason||"")+"</td></tr>";
+    });
+    box.innerHTML=h+"</table>";
+  }catch(e){ var b=document.getElementById("auditBox"); if(b) b.innerHTML='<div class="empty">root only / unavailable</div>'; }
+}
+
+/* ---------- init ---------- */
+(function(){
+  if(token){ showApp(); boot(); }
+  fetch("/admin/devlogin").then(function(r){ if(r.ok) document.getElementById("devHint").style.display="block"; }).catch(function(){});
+})();
+</script>
+</body>
+</html>
