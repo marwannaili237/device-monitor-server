@@ -369,6 +369,13 @@ def admin_ui_v2_preview():
 
 
 
+@app.get("/admin2", response_class=HTMLResponse)
+def admin_ui_v2_preview():
+    idx = BASE_DIR / "static" / "index-v2.html"
+    if idx.exists():
+        return HTMLResponse(idx.read_text(encoding="utf-8"))
+    return HTMLResponse("<h3>v2 preview not deployed.</h3>")
+
 @app.get("/admin/health")
 def health():
     return {"ok": True}
