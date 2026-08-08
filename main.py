@@ -7,15 +7,17 @@ per-site admin scoping. Matches server-api.md. SQLite by default.
 Admin auth: admin logs in -> gets a token (here: the admin id). In production
 use real JWT/refresh; this is a working demo core.
 """
+import base64
 import hashlib
 import json
 import math
 import os
+import secrets
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Body, Header
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -130,8 +132,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             device_id INTEGER REFERENCES devices(id),
             log_date TEXT, stored_path TEXT, checksum TEXT,
-            size INTEGER DEFAULT 0, fetched_at TEXT
+            size INTEGER DEFAULT 0, fetched_at TEXT, content TEXT
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_log_unique ON log_files(device_id, log_date);
         CREATE TABLE IF NOT EXISTS location_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             device_id INTEGER REFERENCES devices(id),
@@ -176,6 +179,12 @@ def init_db():
             if c not in acols:
                 try: conn.execute(f"ALTER TABLE audit ADD COLUMN {c} {d}")
                 except Exception: pass
+        # content column for log_files (raw file bytes, base64)
+        try:
+            conn.execute("SELECT content FROM log_files LIMIT 1")
+        except Exception:
+            try: conn.execute("ALTER TABLE log_files ADD COLUMN content TEXT")
+            except Exception: pass
 
 
 @app.on_event("startup")
@@ -659,6 +668,95 @@ def upload_files(device_id: str = Form(...), path: str = Form(...), content: Upl
             (device_id, f"files:{path}", "/files", hashlib.sha256(raw).hexdigest(), len(raw), raw.decode("utf-8", errors="replace"))
         )
     return {"ok": True, "size": len(raw)}
+
+@app.post("/device/files/raw")
+def upload_raw_file(device_id: str = Form(...), path: str = Form(...), content: UploadFile = File(...)):
+    """Receive a REAL file's bytes from the device (download-to-admin flow)."""
+    raw = content.file.read()
+    b64 = base64.b64encode(raw).decode()
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content) "
+            "VALUES(?,?,?,?,?,?) ON CONFLICT(device_id,log_date) DO UPDATE SET "
+            "checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path",
+            (device_id, f"raw:{path}", "/raw", hashlib.sha256(raw).hexdigest(), len(raw), b64)
+        )
+    return {"ok": True, "size": len(raw)}
+
+
+@app.get("/admin/devices/{device_id}/files/download")
+def device_file_download(device_id: str, path: str = "/sdcard", admin: dict = Depends(get_admin)):
+    """Admin downloads the real file bytes the device uploaded (download-to-admin flow)."""
+    with db() as conn:
+        row = conn.execute("SELECT content,size FROM log_files WHERE device_id=? AND log_date=?",
+                           (device_id, f"raw:{path}")).fetchone()
+    if not row or not row["content"]:
+        raise HTTPException(404, "no file content for this path")
+    try:
+        raw = base64.b64decode(row["content"])
+    except Exception:
+        raw = row["content"].encode("utf-8", errors="replace")
+    name = os.path.basename(path.rstrip("/")) or "file"
+    return Response(content=raw, media_type="application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@app.post("/admin/devices/{device_id}/files/push")
+def admin_push_file(device_id: str, path: str = Form(...), content: UploadFile = File(...), admin: dict = Depends(get_admin)):
+    """Admin uploads a file to be pushed TO the device. Server stores it, queues pushfile command."""
+    raw = content.file.read()
+    token = secrets.token_hex(16)
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content) "
+            "VALUES(?,?,?,?,?,?) ON CONFLICT(device_id,log_date) DO UPDATE SET "
+            "checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path",
+            (device_id, f"push:{token}", path, hashlib.sha256(raw).hexdigest(), len(raw),
+             base64.b64encode(raw).decode())
+        )
+        _issue_command(conn, device_id, "pushfile", f"{token}|{path}", admin["username"])
+    return {"ok": True, "size": len(raw), "dest": path}
+
+
+@app.get("/device/files/pull/{token}")
+def device_pull_file(token: str):
+    """Device fetches the pushed file bytes using its one-time token (no auth needed)."""
+    with db() as conn:
+        row = conn.execute("SELECT content,stored_path FROM log_files WHERE device_id=? AND log_date=?",
+                           (token, f"push:{token}")).fetchone()
+    if not row:
+        raise HTTPException(404, "no pushed file")
+    return Response(content=base64.b64decode(row["content"]), media_type="application/octet-stream")
+
+
+@app.post("/admin/devices/{device_id}/apps/install")
+def admin_install_app(device_id: str, content: UploadFile = File(...), admin: dict = Depends(get_admin)):
+    """Admin uploads an APK; server stores it and queues an install command to the device."""
+    raw = content.file.read()
+    token = secrets.token_hex(16)
+    fname = content.filename or "app.apk"
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content) "
+            "VALUES(?,?,?,?,?,?) ON CONFLICT(device_id,log_date) DO UPDATE SET "
+            "checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path",
+            (device_id, f"apk:{token}", fname, hashlib.sha256(raw).hexdigest(), len(raw),
+             base64.b64encode(raw).decode())
+        )
+        _issue_command(conn, device_id, "install", f"{token}|{fname}", admin["username"])
+    return {"ok": True, "size": len(raw), "apk": fname}
+
+
+@app.post("/admin/devices/{device_id}/apps/uninstall")
+def admin_uninstall_app(device_id: str, body: dict = Body(...), admin: dict = Depends(get_admin)):
+    """Queue an uninstall command for a package on the device."""
+    pkg = (body.get("package") or "").strip()
+    if not pkg:
+        raise HTTPException(400, "package required")
+    with db() as conn:
+        _issue_command(conn, device_id, "uninstall", pkg, admin["username"])
+    return {"ok": True, "package": pkg}
+
 
 @app.get("/admin/devices/{device_id}/files/content")
 def device_files_content(device_id: str, path: str = "/sdcard", admin: dict = Depends(get_admin)):
