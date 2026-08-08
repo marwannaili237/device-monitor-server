@@ -359,6 +359,14 @@ def admin_ui():
     if idx.exists():
         return HTMLResponse(idx.read_text(encoding="utf-8"))
     return HTMLResponse("<h3>Admin UI not deployed (missing static/index.html).</h3>")
+@app.get("/admin2", response_class=HTMLResponse)
+def admin_ui_v2_preview():
+    """Preview of the redesigned panel (index-v2.html). Original /admin untouched."""
+    idx = BASE_DIR / "static" / "index-v2.html"
+    if idx.exists():
+        return HTMLResponse(idx.read_text(encoding="utf-8"))
+    return HTMLResponse("<h3>v2 preview not deployed (missing static/index-v2.html).</h3>")
+
 
 
 @app.get("/admin/health")
