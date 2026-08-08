@@ -497,10 +497,10 @@ function loadDeviceFilesView(){
   fileBrowse();
 }
 function renderCrumbs(){
-  const c = el("fCrum"); if(!c) return;
+  const c = el("fCrumbs"); if(!c) return;
   const parts = filePath.split("/").filter(Boolean);
   let acc = "";
-  let html = '<button class="crumb" onclick="fileHome()" style="border:none;background:none;color:var(--acc);cursor:pointer">🔒 sdcard</button>';
+  let html = '<button class="crumb" onclick="fileHome()" style="border:none;background:none;color:var(--acc);cursor:pointer">🏠</button>';
   parts.forEach(p=>{
     acc += "/" + p;
     html += '<span style="color:var(--mut)">/</span><button class="crumb" onclick="filePath=\''+escJS(acc)+'\';loadDeviceFilesView()" style="border:none;background:none;color:var(--acc);cursor:pointer">'+esc(p)+'</button>';
@@ -511,21 +511,30 @@ function fileUp(){
   const p = filePath.replace(/\/+$/,"");
   const i = p.lastIndexOf("/");
   filePath = i <= 0 ? "/sdcard" : p.slice(0, i);
-  loadDeviceFilesView();
+  if(el("fCrumbs")){ renderCrumbs(); fileBrowse(); } else loadDeviceFilesView();
 }
-function fileHome(){ filePath = "/sdcard"; loadDeviceFilesView(); }
+function fileHome(){ filePath = "/sdcard"; if(el("fCrumbs")){ renderCrumbs(); fileBrowse(); } else loadDeviceFilesView(); }
 
+var listingCache = {};
+var lastListSig = null;
 async function fileBrowse(force){
   const list = el("fileList"); if(!list) return;
-  list.innerHTML = '<div class="dim" style="padding:24px;text-align:center">⏳ Opening <b>'+esc(filePath)+'</b>…</div>';
+  lastListSig = null;   // new folder → always render on first pass
+  list.innerHTML = '<div class="dim" style="padding:24px;text-align:center">⏳ '+esc(filePath)+'…</div>';
   renderCrumbs();
   if(filePollTimer){ clearInterval(filePollTimer); filePollTimer = null; }
+  // instant: show cached entries if we have them (nav back/forth is snappy)
+  if(!force && listingCache[filePath] && listingCache[filePath].length && listingCache[filePath].length > 0){
+    currentListing = listingCache[filePath];
+    list.innerHTML = ''; fileListRender();
+  }
   try{
     const j = await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(filePath)+(force?"&force=1":""));
     if(j && Array.isArray(j.entries) && j.entries.length){
       currentListing = j.entries;
-      list.innerHTML = ''; fileListContent();
-      return;   // instant: cache hit
+      listingCache[filePath] = j.entries;
+      list.innerHTML = ''; fileListRender();
+      return;   // instant: server cache hit
     }
   }catch(e){ list.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; return; }
   // cache miss: ask the device and poll
@@ -550,7 +559,15 @@ async function fileBrowse(force){
     }
   }, 1500);
 }
-function fileListRender(){ fileListContent(); }
+function fileListRender(){
+  // skip the re-render if the listing didn't actually change (stops poll flicker/lag)
+  try{
+    const sig = JSON.stringify((currentListing||[]).map(function(f){ return (f.type||"")+":"+(f.name||"")+":"+(f.size||0); }));
+    if(sig === lastListSig) return;
+    lastListSig = sig;
+  }catch(e){}
+  fileListContent();
+}
 
 function fileListContent(){
   const list = el("fileList"); if(!list) return;
@@ -592,19 +609,34 @@ function iconFor(name){
   return "📄";
 }
 function escJS(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
-function fileOpen(name){ filePath = filePath.replace(/\/+$/,"")+"/"+name; loadDeviceFilesView(); }
+function fileOpen(name){ filePath = filePath.replace(/\/+$/,"")+"/"+name; if(el("fCrumbs")){ renderCrumbs(); fileBrowse(); } else loadDeviceFilesView(); }
 async function fileDownload(path){
   if(!path){ flash("Missing path", true); return; }
-  flash("Requesting file…");
+  if(!confirm("Download \""+String(path).split("/").pop()+"\" from the device?")) return;
+  flash("⏳ Asking the phone to send the file…");
   try{
-    const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path), {headers:{"Authorization":"Bearer "+token}});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const blob = await r.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = String(path).split("/").pop(); a.click();
-    URL.revokeObjectURL(a.href);
-    flash("Downloaded from device");
-  }catch(e){ flash("Download: "+e.message, true); }
+    // 1. queue the download command on the device
+    await api("/admin/devices/"+encodeURIComponent(cur)+"/files/request", {method:"POST", body: JSON.stringify({path:path})});
+  }catch(e){ flash("Download: "+e.message, true); return; }
+  // 2. poll until the device has uploaded the bytes (pulse interval + jitter)
+  const maxWait = Date.now() + 120000;   // up to 2 min (device heartbeats every ~60s)
+  flash("⏳ Phone is sending the file — please wait…");
+  while(Date.now() < maxWait){
+    await new Promise(r=>setTimeout(r, 4000));
+    try{
+      const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path), {headers:{"Authorization":"Bearer "+token}});
+      if(r.ok){
+        const blob = await r.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = String(path).split("/").pop(); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+        flash("⬇ Downloaded from device");
+        fileBrowse(true);   // refresh listing (fetched_at changed)
+        return;
+      }
+    }catch(e){ /* 404 = not ready yet, keep polling */ }
+  }
+  flash("Download: timed out — device didn't respond. Is it online?", true);
 }
 async function filePush(){
   const p = prompt("Destination folder on device:", filePath); if(p==null) return;
@@ -684,8 +716,14 @@ async function logLoadDates(){
       el("dBody").innerHTML = '<div class="card" style="text-align:center;padding:26px"><div style="font-size:34px;margin-bottom:10px">📭</div><b>No activity captured yet</b><div class="dim" style="margin-top:6px">The daily keystroke/activity log hasn\'t uploaded.<br>On the phone: open the Work Monitor app and turn <b>Accessibility → ON</b>, then type anything — it lands here within a minute.</div></div>';
       return;
     }
-    if(!logDayCur) logDayCur = dates[0];
-    el("dBody").innerHTML = '<div class="card"><h3 style="display:flex;align-items:center;gap:6px;margin-bottom:8px">⌨ Live activity' + (logDayCur===logDates[0]?'<span class="live" style="margin-left:auto">● LIVE</span>':'') + '</h3>' + logDatesEl() + '</div><div id="logDay" style="margin-top:10px"></div>';
+    if(!logDayCur || !dates.includes(logDayCur)) logDayCur = dates[0];
+    // stable shell: pinned date-bar + content area. The date-bar is rebuilt once here
+    // so navigating days does NOT re-render it (snappy), only the content below updates.
+    if(!el("logShell")){
+      el("dBody").innerHTML = '<div class="card" id="logShell"><h3 style="display:flex;align-items:center;gap:6px;margin-bottom:8px">⌨ Activity log</h3>' + logDatesEl() + '</div><div id="logDay" style="margin-top:10px"></div>';
+    } else {
+      el("logDatesBar").innerHTML = datesChips();
+    }
     logLoad();
   }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
@@ -718,14 +756,17 @@ function logLoad(){
 
 function logDaySelect(dt){
   logDayCur = dt;
-  logLoadDates(/* keep date list rendered */);
+  el("logDatesBar").innerHTML = datesChips();   // just re-highlight chips, don't reload the shell
+  logLoad();                                     // reload the content for the picked day
 }
 
-function logDatesEl(){
-  return '<div style="display:flex;gap:6px;flex-wrap:wrap">' + logDates.map(function(dt){
-    return '<button class="btn sm '+(dt===logDayCur?"":"ghost")+'" onclick="logDaySelect(\''+String(dt).replace(/[^0-9-]/g,"")+'\')">📅 '+esc(String(dt))+'</button>';
-  }).join('') + '</div>';
+function datesChips(){
+  return logDates.map(function(dt){
+    return '<button class="btn sm '+(dt===logDayCur?"":"ghost")+'" onclick="logDaySelect(\''+String(dt).replace(/[^0-9-]/g,"")+'\')">📅 '+esc(String(dt))+(dt===logDates[0]?' <span class="live">LIVE</span>':'')+'</button>';
+  }).join('');
 }
+
+function logDatesEl(){ return '<div id="logDatesBar" style="display:flex;gap:6px;flex-wrap:wrap">' + datesChips() + '</div>'; }
 
 function kl(line){
   // colourise: pulse/focus lines, keystroke lines
@@ -743,7 +784,7 @@ async function logDownloadDay(){
 }
 
 async function loadDeviceLogsTab(d){ // d optional
-  logDayCur = null;
+  if(d) logDayCur = d;                // jump straight to a specific day if given
   logLoadDates();
 }
 

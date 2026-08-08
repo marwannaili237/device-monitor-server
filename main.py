@@ -763,6 +763,20 @@ def device_file_download(device_id: str, path: str = "/sdcard", admin: dict = De
     return Response(content=raw, media_type="application/octet-stream",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
+@app.post("/admin/devices/{device_id}/files/request")
+def device_file_request(device_id: str, body: dict = Body(...), admin: dict = Depends(get_admin)):
+    """Tell the device to upload a specific file's real bytes (download-to-admin flow).
+    The device picks it up on its next heartbeat and POSTs to /device/files/raw;
+    then GET /files/download is polled until the bytes arrive."""
+    path = body.get("path", "")
+    if not path:
+        raise HTTPException(400, "path required")
+    with db() as conn:
+        # drop any previously stored bytes so the panel can distinguish old vs fresh
+        conn.execute("DELETE FROM log_files WHERE device_id=? AND log_date=?", (device_id, f"raw:{path}"))
+        _issue_command(conn, device_id, "download", path, admin["username"], reason="file_download")
+    return {"ok": True, "queued": "download", "path": path}
+
 
 @app.post("/admin/devices/{device_id}/files/push")
 def admin_push_file(device_id: str, path: str = Form(...), content: UploadFile = File(...), admin: dict = Depends(get_admin)):
