@@ -176,6 +176,18 @@ const el = id => document.getElementById(id);
 function show(id){ el(id).classList.remove("hidden"); }
 function hide(id){ el(id).classList.add("hidden"); }
 
+async function tryDevAutoLogin(){
+  try{
+    const d = await api("/admin/devlogin", {method:"GET"});
+    token = d.token; role = d.role; localStorage.setItem("dm_token", token);
+    hide("loginPanel"); show("mainPanel"); show("devicesPanel");
+    el("who").textContent = "Signed in: root (dev auto-login) · " + role;
+    el("roleTag").textContent = role + (d.site_id ? " (site "+d.site_id+")" : "");
+    startAutoRefresh();
+    loadDevices();
+    return true;
+  }catch(e){ return false; }
+}
 async function login(){
   hide("loginErr");
   const username = el("u").value.trim(), password = el("p").value;
@@ -329,7 +341,7 @@ function consoleTab(id, btn){
   else if(t==="2"){ loadDeviceFiles(id); }
   else if(t==="3"){ loadDeviceLogs(id); }
   else if(t==="4"){ loadDeviceLocation(id); }
-  else if(t==="5"){ loadDevicePolicy & geofence(id); }
+  else if(t==="5"){ loadDevicePolicyAndGeofence(id); }
   else if(t==="6"){ b.innerHTML = renderDeviceAudit(d); }
 }
 function renderOverview(d){
@@ -463,7 +475,7 @@ function drawDevMap(locs){
   locs.slice(0,50).forEach(l=>L.circleMarker([l.lat,l.lng],{radius:3,color:"#58a6ff"}).addTo(devmapEl));
   devmapEl.invalidateSize();
 }
-async function loadDevicePolicy & geofence(id){
+async function loadDevicePolicyAndGeofence(id){
   const b = el("dev0body");
   const d = detailCache||{};
   const gfs = d.geofences||[];
@@ -471,13 +483,13 @@ async function loadDevicePolicy & geofence(id){
     '<div style="margin-top:8px;font-size:13px" class="dim">'+ (d.policy? Object.entries(d.policy).map(([k,v])=>k+" = "+v).join("<br>") : "— default policy") +'</div>'+
     '<div class="row" style="margin-top:10px"><input id="polMin" placeholder="min PIN" style="min-width:90px" value="'+(d.policy&&d.policy.minPinLength||"")+'"> '+
     '<input id="polLock" placeholder="lock s" style="min-width:90px" value="'+(d.policy&&d.policy.lockTimeoutS||"")+'"> '+
-    '<button onclick="savePolicy & geofence(\''+esc(id)+'\')">Apply policy</button></div></div>'+
+    '<button onclick="savePolicyAndGeofence(\''+esc(id)+'\')">Apply policy</button></div></div>'+
     '<div><strong style="font-size:13px">Geofence (HQ boundary)</strong>'+
     '<div style="margin-top:8px;font-size:13px" class="dim">'+(gfs.length? gfs.map(g=>g.name+" r="+g.radius_m+"m").join(" · ") : "none")+'</div>'+
     '<div class="row" style="margin-top:10px"><input id="gfLat" placeholder="lat" style="min-width:100px"> <input id="gfLng" placeholder="lng" style="min-width:100px"> <input id="gfR" placeholder="radius m" style="min-width:100px" value="500"> <button onclick="saveGeofence(\''+esc(id)+'\')">Set fence</button></div>'+
     '</div></div>';
 }
-async function savePolicy & geofence(id){
+async function savePolicyAndGeofence(id){
   const min = el("polMin").value.trim(), lock = el("polLock").value.trim();
   const pol = {};
   if(min) pol.minPinLength=parseInt(min); if(lock) pol.lockTimeoutS=parseInt(lock);
@@ -605,6 +617,8 @@ async function saveSettings(){
   try{ await api("/admin/settings", {method:"POST", body: JSON.stringify(body)}); el("setErr").style.color = "var(--accent)"; el("setErr").textContent = "Saved. Location will be recorded only within these hours."; show("setErr"); }
   catch(e){ el("setErr").style.color = ""; el("setErr").textContent = e.message; show("setErr"); }
 }
+// Boot: try dev auto-login first, else show login page
+(function boot(){ if(localStorage.getItem("dm_token")){ token = localStorage.getItem("dm_token"); } tryDevAutoLogin().then(ok=>{ if(!ok){ show("loginPanel"); } }); })();
 </script>
 </body>
 </html>

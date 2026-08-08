@@ -370,6 +370,17 @@ def admin_login(body: dict = Body(...)):
     return {"token": str(row["id"]), "role": row["role"], "site_id": row["site_id"]}
 
 
+@app.get("/admin/devlogin")
+def admin_devlogin():
+    """Dev-only auto-login: returns the root admin token when DEV_MODE=1. Never enabled in prod."""
+    if os.environ.get("DEV_MODE") != "1":
+        raise HTTPException(404, "dev login disabled")
+    with db() as conn:
+        row = conn.execute("SELECT * FROM admins WHERE username='root'").fetchone()
+    if not row:
+        raise HTTPException(404, "root admin missing")
+    return {"token": str(row["id"]), "role": row["role"], "site_id": row["site_id"]}
+
 @app.get("/admin/devices")
 def list_devices(admin=Depends(get_admin)):
     with db() as conn:
