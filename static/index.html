@@ -1,703 +1,834 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0e14">
-<title>Work Monitor — Console</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Device Monitor — Admin</title>
 <style>
 :root{
-  --bg:#0a0e14; --bg2:#0e1420; --card:#121a2b; --card2:#172136; --bord:#1e2b4a;
-  --txt:#e4ecf7; --mut:#8a99b8; --dim:#54628a;
-  --acc:#5b8cff; --acc2:#7aa5ff;
-  --ok:#2dd4a7; --warn:#f5b83d; --bad:#ff5c6e; --info:#38bdf8;
+  --bg:#0a0c10; --bg2:#0f1218; --card:#141821; --card2:#181d28; --line:#232a38;
+  --txt:#e6e9ef; --mut:#8b93a3; --dim:#5d6575;
+  --acc:#5b8cff; --acc2:#7aa5ff; --ok:#2ed997; --warn:#ffb84d; --err:#ff5d6b; --purple:#a78bfa;
   --r:14px;
 }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{font-size:15.5px}
-body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;overscroll-behavior:none}
-h1,h2,h3{font-weight:600;letter-spacing:.01em}
-button{font:inherit;cursor:pointer}
-input,select,textarea{font:inherit;color:var(--txt);background:var(--bg2);border:1px solid var(--bord);border-radius:10px;padding:.55rem .7rem;width:100%;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--acc)}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:#223050;border-radius:4px}
-a{color:var(--acc)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;color:#dfe4ec;font-size:14.5px;line-height:1.5}
 
-/* ============ LOGIN ============ */
-#loginView{flex:1;display:flex;align-items:center;justify-content:center;padding:1.5rem}
-.login-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--bord);border-radius:20px;padding:2rem 1.6rem;box-shadow:0 24px 60px #0009}
-.logo{display:flex;align-items:center;gap:.7rem;margin-bottom:1.6rem;justify-content:center}
-.logo-mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--acc),#9d5bff);display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px #5b8cff44}
-.logo-name{font-size:1.15rem;font-weight:700;letter-spacing:.02em}
-.logo-sub{font-size:.72rem;color:var(--mut);letter-spacing:.14em;text-transform:uppercase}
-.login-card label{display:block;font-size:.78rem;color:var(--mut);margin:.9rem 0 .3rem;text-transform:uppercase;letter-spacing:.08em}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;background:var(--acc);color:#fff;border:none;border-radius:10px;padding:.6rem 1rem;font-weight:600;transition:filter .15s, transform .05s;width:100%}
-.btn:hover{filter:brightness(1.12)} .btn:active{transform:scale(.98)}
-.btn.block{margin-top:1.2rem;padding:.75rem}
-.btn.ghost{background:transparent;border:1px solid var(--bord);color:var(--txt);font-weight:500}
-.btn.danger{background:var(--bad)} .btn.warn{background:var(--warn);color:#221a05}
-.btn.ok{background:var(--ok);color:#04241c}
-.btn.sm{width:auto;padding:.42rem .8rem;font-size:.85rem;border-radius:9px}
-.login-err{color:var(--bad);font-size:.85rem;margin-top:.8rem;min-height:1.2em;text-align:center}
-.demo-hint{text-align:center;font-size:.78rem;color:var(--dim);margin-top:1rem}
+/* ============ SIDEBAR (desktop) ============ */
+#side{width:230px;min-width:230px;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:20px 18px;font-weight:800;font-size:16px;letter-spacing:.2px;border-bottom:1px solid var(--line);color:#fff}
+.brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#5b8cff,#7aa5ff);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 14px rgba(91,140,255,.35)}
+.brand span{color:#7aa5ff}
+#side nav{flex:1;padding:12px 10px;overflow-y:auto}
+.sidebtn{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;color:var(--mut);font-size:14px;font-weight:500;padding:11px 13px;border-radius:10px;cursor:pointer;text-align:left;transition:.15s;margin-bottom:2px}
+.sidebtn:hover{background:var(--card);color:#fff}
+.sidebtn.on{background:linear-gradient(90deg,rgba(91,140,255,.16),rgba(91,140,255,.04));color:#8fb0ff;font-weight:600}
+.sidebtn .ic{width:22px;text-align:center;font-size:16px;opacity:.9}
+#side .foot{padding:14px 18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mut)}
+#side .foot .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px;box-shadow:0 0 8px rgba(45,217,151,.6)}
+#side .foot .dim{font-size:11px;color:var(--dim);margin-top:3px}
 
-/* ============ APP SHELL ============ */
-#app{flex:1;display:none;flex-direction:column;max-width:1060px;width:100%;margin:0 auto}
-header.top{display:flex;align-items:center;gap:.8rem;padding:.9rem 1rem .6rem}
-.top .ttl{font-weight:700;font-size:1.06rem;display:flex;align-items:center;gap:.55rem}
-.top .ttl .logo-mark{width:30px;height:30px;font-size:1rem;border-radius:9px}
-.who{margin-left:auto;display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--mut)}
-.who .role{background:var(--card2);border:1px solid var(--bord);padding:.18rem .55rem;border-radius:20px;font-size:.72rem;letter-spacing:.05em;text-transform:uppercase}
-.icon-btn{background:var(--card);border:1px solid var(--bord);color:var(--txt);border-radius:9px;padding:.35rem .6rem;font-size:.85rem;line-height:1}
-.icon-btn:hover{border-color:var(--acc)}
+/* ---------- MAIN ---------- */
+#main{flex:1;min-width:0;padding:26px clamp(14px,4vw,34px) 40px;overflow-x:hidden}
+.hidden{display:none!important}
+.pagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.pagehead h1{font-size:21px;font-weight:800;letter-spacing:-.3px;color:#fff}
+.pagehead .sub{color:var(--mut);font-size:13px;margin-top:2px}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
-main{flex:1;padding:.2rem 1rem 5.5rem;position:relative}
-.view{display:none;animation:fade .18s ease}
-.view.on{display:block}
-@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* ---------- KPI cards ---------- */
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;position:relative;overflow:hidden}
+.kpi .box::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#5b8cff,transparent);opacity:.7}
+.kpi .box.g::before{background:linear-gradient(90deg,var(--ok),transparent)}
+.kpi .box.r::before{background:linear-gradient(90deg,var(--err),transparent)}
+.kpi .box .n{font-size:25px;font-weight:800;color:#fff;letter-spacing:-.5px}
+.kpi .box.r .n{color:var(--err)}
+.kpi .box.g .n{color:var(--ok)}
+.kpi .box .l{font-size:11.5px;color:var(--mut);margin-top:3px;text-transform:uppercase;letter-spacing:.7px}
+.kpi .box .hl{position:absolute;top:14px;right:14px;font-size:12px}
 
-/* KPI cards */
-.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin:.6rem 0 1rem}
-@media(min-width:760px){.kpis{grid-template-columns:repeat(4,1fr)}}
-.kpi{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);padding:.85rem .95rem;position:relative;overflow:hidden}
-.kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--kc,var(--acc))}
-.kpi .n{font-size:1.5rem;font-weight:700;line-height:1.1}
-.kpi .l{font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem}
-.card{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);padding:.95rem 1rem;margin-bottom:.9rem}
-.card>h3{font-size:.95rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem}
-.card>h3 .tag{margin-left:auto}
+/* ---------- cards/tables ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h3{font-size:12.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.7px;padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid rgba(35,43,58,.6);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--bg2)}
 
-/* pills + chips */
-.pill{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:600;padding:.16rem .55rem;border-radius:20px;border:1px solid transparent;letter-spacing:.03em}
-.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.pill.ok{color:var(--ok);border-color:#2dd4a744;background:#2dd4a714}
-.pill.off{color:var(--mut);border-color:#8a99b833;background:#8a99b810}
-.pill.rev{color:var(--bad);border-color:#ff5c6e44;background:#ff5c6e14}
-.pill.warn{color:var(--warn);border-color:#f5b83d44;background:#f5b83d14}
-.pill.info{color:var(--info);border-color:#38bdf844;background:#38bdf814}
-.chip{display:inline-block;background:var(--card2);border:1px solid var(--bord);border-radius:8px;padding:.14rem .5rem;font-size:.76rem;color:var(--mut);margin:.12rem .18rem .12rem 0}
-.chip.bad{color:var(--bad);border-color:#ff5c6e55;background:#ff5c6e12}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:20px;font-size:11.5px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.pill:before{content:"";width:6px;height:6px;border-radius:50%}
+.pill.on{background:rgba(45,217,151,.12);color:var(--ok)}
+.pill.on:before{background:var(--ok);box-shadow:0 0 8px rgba(45,217,151,.8)}
+.pill.off{background:rgba(255,184,77,.1);color:var(--warn)}
+.pill.off:before{background:var(--warn)}
+.pill.rev{background:rgba(255,93,107,.12);color:var(--err)}
+.pill.rev:before{background:var(--err)}
+.pill.info{background:rgba(91,140,255,.12);color:#9ec0ff}
+.pill.info:before{background:#9ec0ff}
+.pill.purple{background:rgba(167,139,250,.14);color:var(--purple)}
+.pill.purple:before{background:var(--purple)}
 
-/* device list */
-.dev{background:var(--card);border:1px solid var(--bord);border-radius:var(--r);padding:.8rem .95rem;margin-bottom:.7rem;display:flex;align-items:center;gap:.8rem;cursor:pointer;transition:border-color .15s}
-.dev:hover{border-color:var(--acc)}
-.dev .avatar{width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:1.15rem;flex-shrink:0;border:1px solid var(--bord)}
-.dev .inf{min-width:0;flex:1}
-.dev .nm{font-weight:600;font-size:.94rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dev .sub{font-size:.76rem;color:var(--mut);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dev .meta{text-align:right;flex-shrink:0;display:flex;flex-direction:column;gap:.3rem;align-items:flex-end}
-.dev .bat{font-size:.76rem;color:var(--mut)}
-.empty{color:var(--dim);text-align:center;padding:2.2rem 0;font-size:.88rem}
-.spin{color:var(--dim);text-align:center;padding:1.5rem;font-size:.85rem}
-.spin::before{content:"◌";display:inline-block;animation:rot 1s linear infinite;margin-right:.5rem;font-size:1rem}
-@keyframes rot{to{transform:rotate(360deg)}}
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;background:#3d5ff0;color:#fff;border:none;padding:9px 16px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.14s;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#3455e7;transform:translateY(-1px)}
+.btn:active{transform:none}
+.btn .bic{font-size:14px}
+.btn.green{background:#17a46f}
+.btn.green:hover{background:#13945f}
+.btn.red{background:#e3414f}
+.btn.red:hover{background:#d33a48}
+.btn.ghost{background:none;border:1px solid var(--line);color:#b7bfcc}
+.btn.ghost:hover{background:var(--card2);color:#fff;transform:none}
+.btn.sm{padding:6px 11px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.full{width:100%;justify-content:center}
 
-/* tables */
-table{width:100%;border-collapse:collapse;font-size:.82rem}
-th{font-size:.7rem;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--bord)}
-td{padding:.45rem .5rem;border-bottom:1px solid #1a2438;vertical-align:top;word-break:break-word}
-tr:last-child td{border-bottom:none}
-.tblwrap{overflow-x:auto}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem}
+/* ---------- device rows (cards) ---------- */
+.devicename{font-weight:650;cursor:pointer;color:#cfe0ff;font-size:14.5px}
+.devicename:hover{color:#fff;text-decoration:underline}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.dim{color:var(--dim)}
+.mut{color:var(--mut)}
+.errmsg{background:rgba(255,93,107,.1);border:1px solid rgba(255,93,107,.3);color:#ff9aa3;padding:10px 14px;border-radius:10px;font-size:13px;margin:6px 0}
+.okmsg{background:rgba(45,217,151,.08);border:1px solid rgba(45,217,151,.25);color:var(--ok);padding:10px 14px;border-radius:10px;font-size:13px;margin:6px 0}
 
-/* bottom nav */
-nav.bottom{position:fixed;left:0;right:0;bottom:0;display:flex;background:#0d1220f2;backdrop-filter:blur(12px);border-top:1px solid var(--bord);padding:.35rem .5rem calc(.35rem + env(safe-area-inset-bottom));z-index:50;justify-content:space-around}
-nav.bottom button{background:none;border:none;color:var(--mut);font-size:.68rem;display:flex;flex-direction:column;align-items:center;gap:.18rem;padding:.3rem .8rem;border-radius:10px;letter-spacing:.03em}
-nav.bottom button .ic{font-size:1.2rem;line-height:1}
-nav.bottom button.on{color:var(--acc2)}
-nav.bottom button.on .ic{filter:drop-shadow(0 0 8px #5b8cff88)}
+/* ---------- device detail ---------- */
+.backbtn{background:none;border:1px solid var(--line);color:#c7cfdc;width:34px;height:34px;border-radius:10px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.backbtn:hover{background:var(--card2);color:#fff}
+.tabs{display:flex;gap:4px;margin:14px 0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{background:none;border:none;color:var(--mut);font-size:13.5px;font-weight:600;padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.13s}
+.tabs button.on{color:#fff;border-bottom-color:var(--accent,#5b8cff)}
 
-/* device drawer */
-#drawer{position:fixed;inset:0;z-index:90;display:none}
-#drawer.on{display:block}
-#drawer .scrim{position:absolute;inset:0;background:#000a;backdrop-filter:blur(3px)}
-#drawer .sheet{position:absolute;inset:0;background:var(--bg);overflow-y:auto;padding:1rem 1rem calc(1.5rem + env(safe-area-inset-bottom));animation:slideUp .22s ease}
-@media(min-width:900px){
-  #drawer .sheet{left:240px;border-left:1px solid var(--bord);box-shadow:-30px 0 80px #000}
+/* log viewer */
+.pl{background:#0c0f14;border:1px solid var(--line);border-radius:10px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.65;color:#b9c4d4;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:56vh;overflow-y:auto}
+.logrow{display:flex;gap:8px;padding:5px 8px;border-radius:6px;font-size:12.5px;font-family:ui-monospace,monospace;color:#b9c4d4;border-bottom:1px solid rgba(35,43,58,.4)}
+.logrow:hover{background:var(--bg2)}
+.logrow .t{color:var(--accent2,#7aa5ff);min-width:66px}
+.logrow .ev{color:var(--purple);min-width:9ch;font-weight:700}
+.logrow .pkg{color:var(--warn)}
+
+/* ---------- file rows ---------- */
+.crumb{font-size:12.5px;font-family:ui-monospace,monospace;color:#9db2d6;background:var(--bg2);border:1px solid var(--line);padding:8px 12px;border-radius:9px;flex:1;overflow-x:auto;white-space:nowrap}
+.frow{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:.12s}
+.frow:hover{background:var(--bg2);border-color:var(--line)}
+.frow .fic{font-size:16px;width:22px;text-align:center}
+.frow .nm{flex:1;font-size:13.5px;font-weight:500;color:#dfe4ec;cursor:pointer}
+.frow .meta{color:var(--dim);font-size:12px;min-width:80px;text-align:right}
+.frow .act{display:flex;gap:6px}
+
+/* settings opts */
+.opt{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;text-align:left;font-size:14px;font-weight:650;color:#e8edf5;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:6px}
+.opt:hover{border-color:#3a4acy;background:var(--card2)}
+.opt.on{border-color:rgba(45,217,151,.5);background:rgba(45,217,151,.06)}
+.opt .obig{font-size:22px}
+.opt .osub{font-size:12.5px;color:var(--dim);font-weight:400}
+
+/* ---------- login ---------- */
+#loginBox{background:var(--bg);width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:360px}
+.login-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#5b8cff,#7aa5ff);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px;box-shadow:0 10px 30px rgba(91,140,255,.4)}
+.login-card h1{text-align:center;font-size:21px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.login-card .sg{text-align:center;color:var(--dim);font-size:13px;margin:4px 0 24px}
+.login-card input{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--bg2);color:#fff;font-size:14px;outline:none;transition:.15s}
+.login-card input:focus{border-color:var(--accent,#5b8cff);box-shadow:0 0 0 3px rgba(91,140,255,.15)}
+
+/* ---------- settings grid ---------- */
+.optgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+
+/* ---------- bottom nav (mobile) ---------- */
+#bottomnav{display:none}
+@media(max-width:760px){
+  body{flex-direction:column}
+  #side{display:none}
+  #main{padding:14px 12px 78px;width:100%}
+  .kpi{grid-template-columns:repeat(2,1fr);gap:9px}
+  .kpi .box{padding:12px}
+  .kpi .box .n{font-size:21px}
+  .bar{width:100%}
+  #bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:rgba(15,18,24,.97);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:60;padding-bottom:env(safe-area-inset-bottom)}
+  #bottomnav button{flex:1;background:none;border:none;color:var(--dim);font-size:9.5px;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;letter-spacing:.2px}
+  #bottomnav button .ic{font-size:20px;line-height:1}
+  #bottomnav button.on{color:var(--acc2,#7aa5ff)}
+  #bottomnav button.on .ic{filter:drop-shadow(0 0 8px rgba(91,140,255,.5))}
+  #bottomnav button .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);position:absolute;top:6px;margin-left:14px}
+  .pagehead{margin-bottom:14px}
+  table{font-size:13px}
 }
-@keyframes slideUp{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
-.dhead{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem;position:sticky;top:-1rem;background:linear-gradient(var(--bg) 75%,transparent);padding:1rem 0 .7rem;z-index:5}
-.dhead .avatar{width:48px;height:48px;border-radius:13px;background:var(--card2);display:grid;place-items:center;font-size:1.5rem;border:1px solid var(--bord)}
-.dhead .nm{font-weight:700;font-size:1.08rem}
-.dhead .id{font-size:.72rem;color:var(--dim);font-family:ui-monospace,monospace}
-.dhead .x{margin-left:auto}
-.cmd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.55rem;margin-bottom:1rem}
-.cmd-grid .btn{padding:.7rem .2rem;font-size:.74rem;flex-direction:column;gap:.3rem;border-radius:12px;font-weight:600}
-.cmd-grid .btn .ic{font-size:1.15rem}
-@media(min-width:700px){.cmd-grid{grid-template-columns:repeat(8,1fr)}}
-.sect-t{font-size:.74rem;color:var(--mut);text-transform:uppercase;letter-spacing:.12em;margin:1.1rem 0 .5rem;display:flex;align-items:center;gap:.5rem}
-.sect-t::after{content:"";flex:1;height:1px;background:var(--bord)}
-.kv{display:flex;justify-content:space-between;gap:1rem;padding:.32rem 0;border-bottom:1px dashed #1a2438;font-size:.84rem}
-.kv:last-child{border-bottom:none}
-.kv .k{color:var(--mut);flex-shrink:0}
-.kv .v{text-align:right;word-break:break-all}
-.bar{height:8px;border-radius:5px;background:var(--bg2);overflow:hidden;margin:.3rem 0 .6rem}
-.bar>i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--acc),#9d5bff)}
-pre.logbox{background:var(--bg2);border:1px solid var(--bord);border-radius:11px;padding:.8rem;font-size:.74rem;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;color:#b8c6e2}
-.logitem{display:flex;align-items:center;gap:.6rem;background:var(--card2);border:1px solid var(--bord);border-radius:10px;padding:.55rem .75rem;margin-bottom:.45rem;cursor:pointer;font-size:.85rem}
-.logitem:hover{border-color:var(--acc)}
-.logitem .sz{margin-left:auto;color:var(--dim);font-size:.75rem;flex-shrink:0}
-.row{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center}
-.row>*{flex:1;min-width:0}
-.muted{color:var(--mut);font-size:.82rem}
-.loc{width:100%;height:auto;border:1px solid var(--bord);border-radius:12px;background:var(--card2)}
-.toast{position:fixed;left:50%;bottom:5.2rem;transform:translateX(-50%);background:var(--card2);border:1px solid var(--bord);color:var(--txt);padding:.6rem 1.1rem;border-radius:12px;font-size:.86rem;z-index:200;box-shadow:0 10px 40px #000a;animation:fade .2s;max-width:88vw;text-align:center}
-.toast.err{border-color:#ff5c6e66}
-.foot{text-align:center;color:var(--dim);font-size:.7rem;padding:1rem 0 .4rem;letter-spacing:.1em;text-transform:uppercase}
+@media(max-width:560px){
+  /* responsive table → cards for device list */
+  .devtab thead{display:none}
+  .devtab, .devtab tbody, .devtab tr, .devtab td{display:block;width:100%}
+  .devtab tr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .devtab td{border:none;padding:4px 0}
+  .devtab tr:hover{background:var(--card)}
+  .devname-row td{font-size:15px}
+}
+
+.live{display:inline-block;background:rgba(61,220,151,.12);color:#3ddc97;border:1px solid rgba(61,220,151,.4);border-radius:10px;padding:2px 9px;font-size:11px;font-weight:700;animation:livePulse 2s infinite}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.45}}
+.frow{transition:background .15s}
+.frow:active{background:rgba(255,255,255,.05)}
+.btn.ghost{background:transparent;border:1px solid var(--bd)}
+.crumb{font-size:12px;padding:2px 6px;border-radius:6px}
 </style>
-</head>
-<body>
+</head><body>
 
-<!-- ================= LOGIN ================= -->
-<div id="loginView">
+<!-- login -->
+<div id="loginBox" class="login-wrap hidden">
   <div class="login-card">
-    <div class="logo">
-      <div class="logo-mark">📡</div>
-      <div><div class="logo-name">Work Monitor</div><div class="logo-sub">Admin Console</div></div>
+    <div class="login-logo">🛡</div>
+    <h1>Device<span>Monitor</span></h1>
+    <div class="sg">Admin console</div>
+    <div class="card">
+      <input type="password" id="pw" placeholder="Admin password" autocomplete="current-password">
+      <button class="btn full" style="margin-top:10px" id="loginBtn" onclick="doLogin()">Sign in</button>
+      <div id="loginErr" class="hidden errmsg"></div>
     </div>
-    <label>Username</label>
-    <input id="lu" autocomplete="username" placeholder="root">
-    <label>Password</label>
-    <input id="lp" type="password" autocomplete="current-password" placeholder="••••••••">
-    <button class="btn block" id="loginBtn" onclick="doLogin()">Sign in</button>
-    <div class="login-err" id="lerr"></div>
-    <div class="demo-hint" id="devHint" style="display:none"><a href="javascript:devLogin()">⚡ dev quick-login (DEV_MODE)</a></div>
   </div>
 </div>
 
-<!-- ================= APP ================= -->
-<div id="app">
-  <header class="top">
-    <div class="ttl"><span class="logo-mark">📡</span> Work Monitor</div>
-    <div class="who">
-      <span class="role" id="meRole">…</span><span id="meName"></span>
-      <button class="icon-btn" onclick="boot()" title="Refresh">⟳</button>
-      <button class="icon-btn" onclick="logout()" title="Sign out">⏻</button>
-    </div>
-  </header>
-
-  <main>
-    <!-- OVERVIEW -->
-    <section id="v-overview" class="view">
-      <div class="kpis" id="kpis"></div>
-      <div class="card"><h3>Health & Storage <span class="tag muted" id="healthAvg"></span></h3><div id="storBox"></div></div>
-      <div class="card"><h3>Policy violations</h3><div id="violBox" class="tblwrap"></div></div>
-      <div class="card"><h3>Recent admin activity</h3><div id="recAudit" class="tblwrap"></div></div>
-    </section>
-
-    <!-- DEVICES -->
-    <section id="v-devices" class="view">
-      <div class="row" style="margin:.5rem 0 .8rem">
-        <input id="devSearch" placeholder="🔍 filter devices…" oninput="renderDevices()">
-      </div>
-      <div id="devList"></div>
-    </section>
-
-    <!-- SETTINGS -->
-    <section id="v-settings" class="view">
-      <div class="card">
-        <h3>Server settings <span class="tag pill info">root</span></h3>
-        <div id="setBox"></div>
-        <div style="margin-top:.7rem"><button class="btn sm ok" onclick="saveSettings()">Save settings</button></div>
-      </div>
-      <div class="card">
-        <h3>Create sub-admin <span class="tag pill info">root</span></h3>
-        <div class="row"><input id="naU" placeholder="username"><input id="naP" type="password" placeholder="password"></div>
-        <div class="row" style="margin-top:.55rem">
-          <select id="naRole"><option value="site_admin">site_admin</option><option value="root">root</option></select>
-          <input id="naSite" placeholder="site id (optional)">
-        </div>
-        <div style="margin-top:.7rem"><button class="btn sm" onclick="createAdmin()">Create admin</button></div>
-      </div>
-    </section>
-
-    <!-- AUDIT -->
-    <section id="v-audit" class="view">
-      <div class="card"><h3>Audit log <span class="tag muted">latest 200</span></h3><div id="auditBox" class="tblwrap"></div></div>
-    </section>
-  </main>
-
-  <nav class="bottom">
-    <button data-v="v-overview" class="on" onclick="showView('v-overview',this)"><span class="ic">📊</span>Overview</button>
-    <button data-v="v-devices" onclick="showView('v-devices',this)"><span class="ic">📱</span>Devices</button>
-    <button data-v="v-settings" onclick="showView('v-settings',this)"><span class="ic">⚙️</span>Settings</button>
-    <button data-v="v-audit" onclick="showView('v-audit',this)"><span class="ic">🧾</span>Audit</button>
+<!-- sidebar -->
+<div id="side">
+  <div class="brand"><div class="logo">🛡</div>Device<span>Monitor</span></div>
+  <nav>
+    <div class="sidebtn" data-s="overview" onclick="go('overview')"><span class="ic">▦</span><span>Overview</span></div>
+    <div class="sidebtn" data-s="devices" onclick="go('devices')"><span class="ic">📱</span><span>Devices</span></div>
+    <div class="sidebtn" data-s="audit" onclick="go('audit')"><span class="ic">📜</span><span>Audit Log</span></div>
+    <div class="sidebtn" data-s="settings" onclick="go('settings')"><span class="ic">⚙️</span><span>Settings</span></div>
   </nav>
+  <div class="foot"><span class="dot"></span><span id="who"></span><div class="dim">Device Monitor console</div></div>
 </div>
 
-<!-- ================= DEVICE SHEET ================= -->
-<div id="drawer">
-  <div class="scrim" onclick="closeDev()"></div>
-  <div class="sheet" id="sheet">
-    <div class="dhead">
-      <div class="avatar">📱</div>
-      <div style="min-width:0"><div class="nm" id="dName">…</div><div class="id" id="dId"></div><div id="dPills" style="margin-top:.3rem"></div></div>
-      <button class="icon-btn x" onclick="closeDev()">✕</button>
-    </div>
-    <div id="devBody"></div>
+<div id="main">
+
+  <!-- ================= OVERVIEW ================= -->
+  <div id="sec-overview">
+    <div class="pagehead"><div><h1>Overview</h1><div class="sub">All devices at a glance</div></div>
+      <button class="btn ghost sm" onclick="loadOverview()">↻ Refresh</button></div>
+    <div class="kpi" id="kpis"></div>
+    <div class="card"><h3>Recent activity</h3><div id="ovRecent" class="dim">Loading…</div></div>
+    <div class="card"><h3>⚑ Live devices</h3><div id="ovLive" class="dim">Loading…</div></div>
   </div>
+
+  <!-- ================= DEVICES ================= -->
+  <div id="sec-devices" class="hidden">
+    <div class="pagehead"><div><h1>Devices</h1><div class="sub" id="devSub">…</div></div>
+      <div class="bar"><button class="btn ghost sm" onclick="showAllDevices=!showAllDevices;loadDevices()" id="btnToggleAll">Show all</button>
+      <button class="btn sm" onclick="loadDevices()">↻ Refresh</button></div></div>
+    <div id="devList"></div>
+  </div>
+
+  <!-- ================= DEVICE DETAIL ================= -->
+  <div id="sec-device" class="hidden">
+    <div class="pagehead">
+      <div class="bar">
+        <button class="backbtn" onclick="go('devices')" title="Back">‹</button>
+        <div style="margin-left:8px"><h1 id="dTitle">Device</h1><div class="sub" id="dStatusLine"></div></div>
+      </div>
+      <div class="bar">
+        <button class="btn ghost sm" onclick="sendAction('sync','Force check-in')">⟳</button>
+        <button class="btn sm" onclick="sendAction('beeper','Beep')">🔔 Beep</button>
+        <button class="btn sm" onclick="sendAction('lock','Lock')">🔒 Lock</button>
+        <button class="btn red sm" onclick="confirmWipe()">🗑 Wipe</button>
+      </div>
+    </div>
+    <div id="dMsg"></div>
+    <div class="tabs" id="devTabs">
+      <button class="on" data-t="0" onclick="devTab('0')">Info</button>
+      <button data-t="1" onclick="devTab('1')">Files</button>
+      <button data-t="2" onclick="devTab('2')">Apps</button>
+      <button data-t="3" onclick="devTab('3')">Activity</button>
+      <button data-t="4" onclick="devTab('4')">Map</button>
+      <button data-t="5" onclick="devTab('5')">Audit</button>
+    </div>
+    <div id="dBody"></div>
+  </div>
+
+  <!-- ================= AUDIT ================= -->
+  <div id="sec-audit" class="hidden">
+    <div class="pagehead"><div><h1>Audit Log</h1><div class="sub">Every action ever taken</div></div>
+      <button class="btn ghost sm" onclick="loadAudit()">↻ Refresh</button></div>
+    <div class="card"><div id="audBody" class="dim">Loading…</div></div>
+  </div>
+
+  <!-- ================= SETTINGS ================= -->
+  <div id="sec-settings" class="hidden">
+    <div class="pagehead"><div><h1>Settings</h1><div class="sub">Device-wide behavior</div></div></div>
+    <div class="card" id="whForm"></div>
+  </div>
+
 </div>
+
+<!-- bottom nav -->
+<nav id="bottomnav">
+  <button data-s="overview" onclick="go('overview')"><span class="ic">▦</span>Overview</button>
+  <button data-s="devices" onclick="go('devices')"><span class="ic">📱</span>Devices</button>
+  <button data-s="audit" onclick="go('audit')"><span class="ic">📜</span>Audit</button>
+  <button data-s="settings" onclick="go('settings')"><span class="ic">⚙️</span>Settings</button>
+</nav>
 
 <script>
-"use strict";
 var token = localStorage.getItem("dm_token") || "";
-var me = {role:"",username:""};
-var devices = [], met = null;
-var cur = null, curDetail = null, locPath = "/sdcard";
+var cur = null, curTab = "0";
+var DEV_BYPASS = true;
+var showAllDevices = false;
 
-/* ---------- API ---------- */
+function el(i){ return document.getElementById(i); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 async function api(path, opts){
   opts = opts || {};
-  opts.headers = Object.assign({"Authorization":"Bearer "+token}, opts.headers||{});
-  if(opts.body && typeof opts.body === "string") opts.headers["Content-Type"]="application/json";
-  var r;
-  try{ r = await fetch(path, opts); }
-  catch(e){ toast("network error", true); throw e; }
-  if(r.status===401){ token=""; localStorage.removeItem("dm_token"); showLogin(); throw new Error("session expired"); }
-  if(!r.ok){
-    var t=""; try{ var j=await r.json(); t=j.detail||JSON.stringify(j);}catch(e){ t="HTTP "+r.status; }
-    toast(t, true); throw new Error(t);
-  }
-  return r.json();
-}
-
-/* ---------- helpers ---------- */
-function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
-function fmtTs(s){ if(!s) return "—"; try{ var dt=new Date(s.length>10&&!s.includes("T")?s.replace(" ","T")+"Z":s+(s.includes("Z")?"":"Z")); return dt.toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(e){ return s; } }
-function timeAgo(s){ if(!s) return "never"; try{ var dt=new Date(s.includes("Z")?s:s.replace(" ","T")+"Z"); var d=(Date.now()-dt.getTime())/1000; if(d<60) return "just now"; if(d<3600) return Math.floor(d/60)+"m ago"; if(d<86400) return Math.floor(d/3600)+"h ago"; return Math.floor(d/86400)+"d ago"; }catch(e){ return s; } }
-function fmtSize(b){ b=Number(b)||0; if(b>=1e12) return (b/1e12).toFixed(2)+" TB"; if(b>=1e9) return (b/1e9).toFixed(2)+" GB"; if(b>=1e6) return (b/1e6).toFixed(1)+" MB"; if(b>=1e3) return (b/1e3).toFixed(0)+" KB"; return b+" B"; }
-function devName(d){ return d.model || d.device_id.slice(0,8); }
-function statusPill(d){ if(d.status==="revoked") return '<span class="pill rev">REVOKED</span>'; return d.online ? '<span class="pill ok">LIVE</span>' : '<span class="pill off">OFFLINE</span>'; }
-function batStr(pct, charging){ if(pct==null) return "—"; return (charging?"⚡":"")+pct+"%"; }
-function toast(msg, isErr){
-  var t=document.createElement("div"); t.className="toast"+(isErr?" err":""); t.textContent=msg;
-  document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 2600);
-}
-
-/* ---------- auth ---------- */
-function showLogin(){ document.getElementById("loginView").style.display="flex"; document.getElementById("app").style.display="none"; }
-function showApp(){ document.getElementById("loginView").style.display="none"; document.getElementById("app").style.display="flex"; }
-async function doLogin(){
-  var u=document.getElementById("lu").value.trim(), p=document.getElementById("lp").value;
-  document.getElementById("lerr").textContent="";
+  if(opts.body && !(opts.headers && opts.headers["Content-Type"])) opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
+  opts.headers = Object.assign({"Authorization":"Bearer "+token}, opts.headers || {});
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), 30000);
   try{
-    var d = await api("/admin/login",{method:"POST",body:JSON.stringify({username:u,password:p})});
-    token=d.token; localStorage.setItem("dm_token",token); me.role=d.role||"root"; me.username=u;
-    showApp(); boot();
-  }catch(e){ document.getElementById("lerr").textContent=e.message||"login failed"; }
-}
-async function devLogin(){
-  try{ var d=await (await fetch("/admin/devlogin")).json(); if(d.token){ token=d.token; localStorage.setItem("dm_token",token); showApp(); boot(); } }
-  catch(e){ toast("dev login disabled", true); }
-}
-function logout(){ token=""; localStorage.removeItem("dm_token"); showLogin(); }
-document.getElementById("lp").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
-
-/* ---------- nav ---------- */
-function showView(id, btn){
-  document.querySelectorAll(".view").forEach(function(v){v.classList.remove("on");});
-  document.getElementById(id).classList.add("on");
-  document.querySelectorAll("nav.bottom button").forEach(function(b){b.classList.remove("on");});
-  if(btn) btn.classList.add("on");
-  if(id==="v-settings") loadSettings();
-  if(id==="v-audit") loadAudit();
+    const r = await fetch(path, Object.assign({}, opts, {signal:ctrl.signal}));
+    if(r.status===401){ token=""; localStorage.removeItem("dm_token"); showLogin(); throw new Error("session expired"); }
+    if(r.status===404) throw new Error("not found");
+    if(!r.ok){ let m=""; try{ m=JSON.stringify((await r.json()).detail); }catch(e){} throw new Error(m||("HTTP "+r.status)); }
+    clearTimeout(t);
+    const ct = r.headers.get("content-type")||"";
+    return ct.indexOf("json")>=0 ? r.json() : r;
+  }catch(e){ throw e; }
 }
 
-/* ---------- boot / overview ---------- */
-async function boot(){
-  try{ me = await api("/admin/me"); }catch(e){ me={role:"root",username:"root"}; }
-  document.getElementById("meRole").textContent = me.role||"root";
-  document.getElementById("meName").textContent = me.username||"";
-  document.getElementById("devList").innerHTML='<div class="spin">loading devices…</div>';
-  var devP=null, metP=null;
-  for(var i=0;i<3;i++){
-    try{ devP = await api("/admin/devices"); break; }
-    catch(e){ if(i===2){ document.getElementById("devList").innerHTML='<div class="empty">server unreachable — pull to retry</div>'; } await new Promise(function(r){setTimeout(r,2000);}); }
-  }
-  for(var j=0;j<3;j++){
-    try{ metP = await api("/admin/metrics"); break; }
-    catch(e){ await new Promise(function(r){setTimeout(r,2000);}); }
-  }
-  devices = (devP&&devP.devices)||[]; met = metP;
-  renderKpis(); renderDevices();
-  var isRoot = me.role==="root";
-  document.querySelectorAll('nav.bottom button[data-v="v-settings"],nav.bottom button[data-v="v-audit"]').forEach(function(b){ b.style.display = isRoot?"":"none"; });
-  if(isRoot) loadAudit(true);
+/* ---------- login ---------- */
+async function init(){
+  if(DEV_BYPASS && !token){ tryDevAutoLogin(); return; }
+  if(!token){ showLogin(); return; }
+  try{ const me = await api("/admin/me"); el("who").textContent = (me.role||"admin"); hideLogin(); buildAll(); }
+  catch(e){ showLogin(); }
 }
-async function renderKpis(){
-  var m = met;
-  var k = [
-    {n: m?m.active:0, l:"Online", c:"var(--ok)"},
-    {n: m?m.offline:0, l:"Offline", c:"var(--mut)"},
-    {n: m?m.low_battery:0, l:"Low battery", c:"var(--warn)"},
-    {n: m?m.revoked:0, l:"Revoked", c:"var(--bad)"}
-  ];
-  document.getElementById("kpis").innerHTML = k.map(function(x){
-    return '<div class="kpi" style="--kc:'+x.c+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>';
-  }).join("");
-  if(m){
-    document.getElementById("healthAvg").textContent = "avg health "+(m.avg_health||0)+"%";
-    var tot=m.total_storage||0, free=m.free_storage||0, used=Math.max(0,tot-free);
-    var pct = tot? Math.round(used/tot*100):0;
-    document.getElementById("storBox").innerHTML =
-      '<div class="row muted" style="justify-content:space-between"><span>Fleet storage used</span><span>'+fmtSize(used)+" / "+fmtSize(tot)+'</span></div>'+
-      '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
-      '<div class="kv"><span class="k">OS versions</span><span class="v">'+
-        Object.keys(m.os_versions||{}).map(function(v){return '<span class="chip">Android '+esc(v)+" ×"+m.os_versions[v]+"</span>";}).join("")+'</span></div>';
-    renderViol(); renderRecent(m.recent_audit||[]);
-  } else {
-    document.getElementById("storBox").innerHTML='<div class="empty">metrics unavailable</div>';
-  }
+function showLogin(){ el("loginBox").classList.remove("hidden"); el("side").classList.add("hidden"); el("bottomnav").classList.add("hidden"); }
+function hideLogin(){ el("loginBox").classList.add("hidden"); el("side").classList.remove("hidden"); el("bottomnav").classList.remove("hidden"); }
+function doLogin(){
+  const b = el("loginBtn"); b.disabled=true; b.textContent="Signing in…";
+  fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pw:el("pw").value})})
+  .then(r=>r.json()).then(d=>{
+    if(!d.token) throw new Error(d.detail||"login failed");
+    token = d.token; localStorage.setItem("dm_token", token);
+    el("who").textContent = "root ("+(d.role||"admin")+")";
+    hideLogin(); buildAll();
+  }).catch(e=>{ const er=el("loginErr"); er.classList.remove("hidden"); er.textContent = e.message; b.disabled=false; b.textContent="Sign in"; });
 }
-function renderViol(){
-  api("/admin/compliance").then(function(d){
-    var bad = (d.devices||[]).filter(function(x){return !x.ok;});
-    if(!bad.length){ document.getElementById("violBox").innerHTML='<div class="empty">✓ all devices compliant</div>'; return; }
-    var h='<table><tr><th>Device</th><th>Issues</th><th>Status</th></tr>';
-    bad.forEach(function(x){
-      h+='<tr style="cursor:pointer" onclick="openDev(\''+esc(x.device_id)+'\')"><td>'+esc(x.model||x.device_id.slice(0,8))+'</td><td>'+
-        x.issues.map(function(i){return '<span class="chip bad">'+esc(i)+"</span>";}).join("")+'</td><td>'+statusPill(x)+'</td></tr>';
-    });
-    document.getElementById("violBox").innerHTML=h+"</table>";
-  }).catch(function(){ document.getElementById("violBox").innerHTML='<div class="empty">unavailable</div>'; });
+function tryDevAutoLogin(){
+  fetch("/admin/devlogin").then(r=>r.json()).then(d=>{
+    if(d && d.token){
+      token = d.token; localStorage.setItem("dm_token", token);
+      el("who").textContent = "root ("+(d.role||"admin")+") (dev)";
+      hideLogin(); buildAll();
+    } else showLogin();
+  }).catch(()=> showLogin());
 }
-function renderRecent(rows){
-  if(!rows.length){ document.getElementById("recAudit").innerHTML='<div class="empty">no admin actions yet</div>'; return; }
-  var h='<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Result</th></tr>';
-  rows.slice(0,30).forEach(function(a){
-    h+="<tr><td>"+fmtTs(a.ts)+"</td><td>"+esc(a.actor)+"</td><td>"+esc(a.action)+"</td><td class='mono'>"+esc((a.target||"").slice(0,12))+"</td><td>"+
-      (a.result==="ok"?'<span class="pill ok">'+esc(a.result)+"</span>":'<span class="pill warn">'+esc(a.result||"—")+"</span>")+"</td></tr>";
-  });
-  document.getElementById("recAudit").innerHTML=h+"</table>";
+function go(name){
+  document.querySelectorAll('.sidebtn, #bottomnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===name));
+  if(name==="device" && cur) name="devices";
+  ["overview","devices","device","audit","settings"].forEach(s=>el("sec-"+s).classList.toggle("hidden", s!==name));
+  el("bottomnav").style.display = (name==="device") ? "none" : "";
+  if(name==="overview") loadOverview();
+  if(name==="devices") loadDevices();
+  if(name==="audit") loadAudit();
+  if(name==="settings") loadSettings();
+  window.scrollTo(0,0);
+}
+function buildAll(){ go("overview"); }
+
+/* ---------- overview ---------- */
+function kpiRow(x){
+  return '<div class="box '+(x.c||"")+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>';
+}
+function kpiCard(x){
+  return '<div class="box '+(x.c||"")+'"><div class="n">'+x.n+'</div><div class="l">'+x.l+'</div></div>';
+}
+async function loadOverview(){
+  try{
+    const m = await api("/admin/metrics");
+    const k = [
+      {n:m.total!=null?m.total:0,l:"Total", c:"b"},
+      {n:m.active!=null?m.active:0,l:"Active now", c:m.active?"g":""},
+      {n:m.offline!=null?m.offline:0,l:"Offline", c:m.offline?"w":""},
+      {n:m.revoked!=null?m.revoked:0,l:"Revoked", c:m.revoked?"r":""},
+      {n:m.low_battery!=null?m.low_battery:0,l:"Low battery", c:m.low_battery?"r":""},
+      {n:(m.avg_health||0).toFixed(1),l:"Avg health %"},
+      {n:(m.free_storage!=null?Math.round(m.free_storage/1024/1024/1024)+" GB":"—"), l:"Storage free"},
+    ];
+    el("kpis").innerHTML = k.map(kpiCard).join("");
+    const rec = (m.recent_audit||[]).slice(0,10);
+    el("ovRecent").innerHTML = rec.length
+      ? '<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Device</th><th>Result</th></tr></thead><tbody>'
+        + rec.map(a=>'<tr><td class="dim">'+esc((a.ts||"").slice(5,16))+'</td><td>'+esc(a.actor)+'</td><td>'+esc(a.action.replace("command:",""))+'</td><td class="dim mono">'+esc((a.device_id||"").slice(0,8))+'</td><td>'+esc(a.result||"—")+'</td></tr>').join('')
+        + '</tbody></table>'
+      : '<div class="dim">No activity yet.</div>';
+    const d = await api("/admin/devices");
+    const all = d.devices||d;
+    const act = (all||[]).filter(x=>x.online);
+    el("ovLive").innerHTML = act.length
+      ? '<table class="devtab"><thead><tr><th>Device</th><th>Status</th><th>Battery</th><th>Last seen</th></tr></thead><tbody>'
+        + act.map(x=>'<tr style="cursor:pointer" onclick="openDevice(\''+esc(x.device_id)+'\')"><td><span class="devicename">'+esc(x.label||x.model||x.os_version||x.device_id.slice(0,8))+'</span><div class="dim" style="font-size:11px">'+esc(x.model||"")+' · '+esc(x.device_id.slice(0,8))+'</div></td>'
+          + '<td><span class="pill on">LIVE</span></td>'
+          + '<td>'+(x.battery_pct!=null?x.battery_pct+"%"+(x.charging?" ⚡":""):"—")+'</td>'
+          + '<td class="dim">'+esc((x.last_seen_at||"").slice(5,19))+'</td></tr>').join('')
+        + '</tbody></table>'
+      : '<div class="dim">No live devices right now.</div>';
+  }catch(e){ el("kpis").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
 /* ---------- devices ---------- */
-function renderDevices(){
-  var q=(document.getElementById("devSearch").value||"").toLowerCase();
-  var list=devices.filter(function(d){
-    return !q || (d.model||"").toLowerCase().includes(q) || (d.device_id||"").toLowerCase().includes(q) || (d.manufacturer||"").toLowerCase().includes(q);
+async function loadDevices(){
+  el("devSub").textContent = "Loading…";
+  try{
+    const d = await api("/admin/devices");
+    var all = d.devices||d;
+    var active = (all||[]).filter(function(x){ return x.online; });
+    var list = showAllDevices ? all : active;
+    el("devSub").textContent = (list.length||0)+" device"+(list.length===1?"":"s")
+      + (showAllDevices ? " shown (all)" : " shown (live only) · "+active.length+" live");
+    el("btnToggleAll").textContent = showAllDevices ? "Show live only" : "Show all "+all.length;
+    el("devList").innerHTML = '<table class="devtab"><thead><tr><th>Device</th><th>Status</th><th>Battery</th><th>Last seen</th><th></th></tr></thead><tbody>'
+      + list.map(x=>{
+          const st = x.status;
+          const pill = x.online?'<span class="pill on">● LIVE</span>':st==="revoked"?'<span class="pill rev">● REVOKED</span>':'<span class="pill off">○ OFFLINE</span>';
+          const id8 = String(x.device_id||"").slice(0,8);
+          const name = x.label||x.model||x.os_version||id8;
+          return '<tr style="cursor:pointer" onclick="openDevice(\''+esc(x.device_id)+'\')">'
+            + '<td><div class="devicename">'+esc(name)+'</div><div class="dim" style="font-size:11px">'+esc(x.model||"unknown model")+' · <span class="mono">'+esc(id8)+'…</span></div></td>'
+            + '<td>'+pill+'</td><td>'+(x.battery_pct!=null?x.battery_pct+"%"+(x.charging?" ⚡":""):"—")+'</td>'
+            + '<td class="dim">'+esc((x.last_seen_at||"").slice(5,19))+'</td>'
+            + '<td style="text-align:right"><button class="btn sm" onclick="event.stopPropagation();openDevice(\''+esc(x.device_id)+'\')">Open →</button></td></tr>';
+        }).join('')+'</tbody></table>'
+      + (list.length===0 ? '<div class="card dim" style="text-align:center;padding:30px">No '+(showAllDevices?'devices':'live devices')+' right now.</div>' : '');
+  }catch(e){ el("devList").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
+}
+
+function openDevice(id){
+  cur = id;
+  ["overview","devices"].forEach(s=>el("sec-"+s).classList.add("hidden"));
+  el("sec-device").classList.remove("hidden");
+  el("bottomnav").style.display = "none";
+  el("devTabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.t==="0"));
+  loadDeviceDetail(id, "0");
+  window.scrollTo(0,0);
+}
+
+var detailReq = 0;
+async function loadDeviceDetail(id, tab){
+  const myReq = ++detailReq;
+  el("dBody").innerHTML = '<div class="dim" style="padding:20px;text-align:center">Loading…</div>';
+  try{
+    const d = await api("/admin/devices/"+encodeURIComponent(id)+"/detail");
+    if(myReq !== detailReq) return; // a newer tab/device was opened meanwhile
+    el("dTitle").textContent = esc(d.label||d.model||d.os_version||id.slice(0,8));
+    el("dStatusLine").textContent = (d.model||"") + " · Android " + (d.os_version||"") + " · " + (d.status||"");
+    renderDeviceTab(d, tab);
+  }catch(e){ if(myReq === detailReq) el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
+}
+function devTab(t){
+  detailReq++; // invalidate any in-flight detail render so it can't clobber the tab we just opened
+  ["0","1","2","3","4","5"].forEach(x=>el("devTabs").querySelector('button[data-t="'+x+'"]').classList.toggle("on", x===t));
+  if(t==="0") loadDeviceDetail(cur,"0");
+  else if(t==="1") loadDeviceFilesView();
+  else if(t==="2") loadDeviceAppsFromServer();
+  else if(t==="3") loadDeviceLogsTab();
+  else if(t==="4") loadDeviceMapTab();
+  else if(t==="5") loadDeviceAuditTab();
+  window.scrollTo(0,0);
+}
+async function renderDeviceTab(d,t){
+  el("dBody").innerHTML = '';
+  if(t==="0") el("dBody").innerHTML = infoHtml(d);
+  else if(t==="1") loadDeviceFilesView();
+  else if(t==="2") loadDeviceAppsView(d);
+  else if(t==="3") loadDeviceLogsTab(d);
+  else if(t==="4") loadDeviceMapTab();
+  else if(t==="5") loadDeviceAuditTab();
+}
+function infoHtml(d){
+  const stor = d.storage_total ? fmtSize(d.storage_free)+" free of "+fmtSize(d.storage_total) : "—";
+  const fl = [];
+  if(d.rooted) fl.push(['rooted','r']); if(d.unknown_sources) fl.push(['unknown sources','w']); if(d.unlocked_boot) fl.push(['bootloader unlocked','w']);
+  return '<div class="card"><h3>Identity</h3><table>'
+    + row('Label', d.label||"—") + row('Serial', d.device_id, 'mono')
+    + row('Model', d.model||"—") + row('OS','Android '+(d.os_version||"—")+' (SDK '+(d.sdk||"—")+')')
+    + row('Manufacturer', d.manufacturer||"—") + row('Security patch', d.security_patch||"—")
+    + row('Enrolled', (d.enrolled_at||"").slice(0,19).replace("T"," "), 'dim')
+    + '</table></div>'
+    + '<div class="card"><h3>Health</h3><table>'
+    + row('Battery', d.battery_pct!=null?d.battery_pct+"%"+(d.charging?" ⚡":""):"—")
+    + row('Storage', stor)
+    + row('Last seen', (d.last_seen_at||"").slice(0,19).replace("T"," "), 'dim')
+    + '</table></div>'
+    + (fl.length ? '<div class="card"><h3>Flags</h3><div style="display:flex;gap:6px;flex-wrap:wrap">'+fl.map(f=>'<span class="pill" style="'+ (f[1]==='r'?'background:rgba(255,93,107,.12);color:#ff5d6b':'background:rgba(255,184,77,.1);color:#ffb84d') +'">⚑ '+f[0]+'</span>').join('')+'</div></div>' : '');
+}
+function row(k,v,cls){ return '<tr><td class="mut" style="width:38%">'+k+'</td><td class="'+(cls||'')+'">'+esc(v)+'</td></tr>'; }
+
+
+
+/* ================= FILES (professional file manager) ================= */
+var filePath = "/sdcard";
+var filePollTimer = null;
+var currentListing = [];
+var fileSortMode = "name";
+
+function loadDeviceFilesView(){
+  el("dBody").innerHTML = ''
+    + '<div class="card" style="padding:0;overflow:hidden">'
+    +   '<div class="fman-toolbar" style="display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--bd);flex-wrap:wrap">'
+    +     '<button class="btn sm ghost" onclick="fileUp()" title="Up">⬆</button>'
+    +     '<button class="btn sm ghost" onclick="fileHome()" title="/sdcard">🏠</button>'
+    +     '<button class="btn sm ghost" onclick="fileBrowse()" title="Refresh">↻</button>'
+    +     '<span class="fman-path" style="flex:1;font-size:13px;word-break:break-all;color:var(--mut)">'+esc(filePath)+'</span>'
+    +   '</div>'
+    +   '<div id="fCrumbs" style="display:flex;flex-wrap:wrap;gap:2px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px"></div>'
+    +   '<div id="fileList" style="min-height:120px"></div>'
+    +   '<div class="fman-footer" style="display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--border);flex-wrap:wrap">'
+    +     '<button class="btn sm green" onclick="filePush()">⬆ Push file</button>'
+    +     '<button class="btn sm green" onclick="fileInstall()">📦 APK</button>'
+    +     '<select class="btn sm" onchange="fileSortMode=this.value;fileListRender()" title="Sort" style="margin-left:auto">'
+    +       '<option value="name">Name</option><option value="size">Size</option><option value="type">Type</option>'
+    +     '</select>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="dim" style="font-size:12px;padding:4px 12px 8px">Tap a folder to open · tap a file to download it · listings are pulled live from the device.</div>';
+  renderCrumbs();
+  fileBrowse();
+}
+function renderCrumbs(){
+  const c = el("fCrum"); if(!c) return;
+  const parts = filePath.split("/").filter(Boolean);
+  let acc = "";
+  let html = '<button class="crumb" onclick="fileHome()" style="border:none;background:none;color:var(--acc);cursor:pointer">🔒 sdcard</button>';
+  parts.forEach(p=>{
+    acc += "/" + p;
+    html += '<span style="color:var(--mut)">/</span><button class="crumb" onclick="filePath=\''+escJS(acc)+'\';loadDeviceFilesView()" style="border:none;background:none;color:var(--acc);cursor:pointer">'+esc(p)+'</button>';
   });
-  if(!list.length){ document.getElementById("devList").innerHTML='<div class="empty">no devices enrolled yet</div>'; return; }
-  document.getElementById("devList").innerHTML = list.map(function(d){
-    return '<div class="dev" onclick="openDev(\''+esc(d.device_id)+'\')">'+
-      '<div class="avatar">📱</div>'+
-      '<div class="inf"><div class="nm">'+esc(devName(d))+'</div>'+
-      '<div class="sub">'+esc([d.manufacturer,d.os_version?("Android "+d.os_version):null].filter(Boolean).join(" · "))+'</div>'+
-      '<div class="sub">'+timeAgo(d.last_seen_at)+'</div></div>'+
-      '<div class="meta">'+statusPill(d)+'<span class="bat">'+batStr(d.battery_pct,d.charging)+'</span></div></div>';
-  }).join("");
+  c.innerHTML = html;
 }
+function fileUp(){
+  const p = filePath.replace(/\/+$/,"");
+  const i = p.lastIndexOf("/");
+  filePath = i <= 0 ? "/sdcard" : p.slice(0, i);
+  loadDeviceFilesView();
+}
+function fileHome(){ filePath = "/sdcard"; loadDeviceFilesView(); }
 
-/* ---------- device sheet ---------- */
-async function openDev(id){
-  cur=id; curDetail=null; locPath="/sdcard";
-  document.getElementById("drawer").classList.add("on");
-  document.body.style.overflow="hidden";
-  document.getElementById("devBody").innerHTML='<div class="spin">loading device…</div>';
+async function fileBrowse(force){
+  const list = el("fileList"); if(!list) return;
+  list.innerHTML = '<div class="dim" style="padding:24px;text-align:center">⏳ Opening <b>'+esc(filePath)+'</b>…</div>';
+  renderCrumbs();
+  if(filePollTimer){ clearInterval(filePollTimer); filePollTimer = null; }
   try{
-    curDetail = await api("/admin/devices/"+encodeURIComponent(id)+"/detail");
-    renderDev();
-  }catch(e){ document.getElementById("devBody").innerHTML='<div class="empty">failed to load</div>'; }
+    const j = await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(filePath)+(force?"&force=1":""));
+    if(j && Array.isArray(j.entries) && j.entries.length){
+      currentListing = j.entries;
+      list.innerHTML = ''; fileListContent();
+      return;   // instant: cache hit
+    }
+  }catch(e){ list.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; return; }
+  // cache miss: ask the device and poll
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(filePath)+"&force=1"); }
+  catch(e){ list.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; return; }
+  currentListing = [];
+  let tries = 0;
+  filePollTimer = setInterval(async function(){
+    tries++;
+    try{
+      const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/content?path="+encodeURIComponent(filePath), {headers:{"Authorization":"Bearer "+token}});
+      const j = await r.json();
+      if(j && Array.isArray(j.entries)){
+        currentListing = j.entries;
+        fileListRender();
+        if(j.entries.length || j.updated){ clearInterval(filePollTimer); filePollTimer = null; }
+        else if(tries > 20){ clearInterval(filePollTimer); filePollTimer = null; list.innerHTML = '<div class="dim" style="padding:24px;text-align:center">Device hasn\'t answered yet (checks in ~60s) — tap ↻ to retry.</div>'; }
+      }
+    }catch(e){
+      clearInterval(filePollTimer); filePollTimer = null;
+      list.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>';
+    }
+  }, 1500);
 }
-function closeDev(){ document.getElementById("drawer").classList.remove("on"); document.body.style.overflow=""; cur=null; }
+function fileListRender(){ fileListContent(); }
 
-function renderDev(){
-  var d=curDetail; if(!d) return;
-  document.getElementById("dName").textContent=devName(d);
-  document.getElementById("dId").textContent=d.device_id;
-  document.getElementById("dPills").innerHTML=statusPill(d)+" "+
-    (d.compliance&&d.compliance.length?('<span class="pill warn">'+d.compliance.length+" issue"+(d.compliance.length>1?"s":"")+"</span>"):'<span class="pill ok">compliant</span>');
-
-  var isRoot=me.role==="root";
-  var used=Math.max(0,(d.storage_total||0)-(d.storage_free||0));
-  var pct=d.storage_total?Math.round(used/d.storage_total*100):0;
-
-  var h="";
-  h+='<div class="cmd-grid">'+
-    '<button class="btn" onclick="sendCmd(\'lock\')"><span class="ic">🔒</span>Lock</button>'+
-    '<button class="btn warn" onclick="sendCmd(\'beeper\')"><span class="ic">🔊</span>Beep</button>'+
-    '<button class="btn ok" onclick="sendCmd(\'sync\')"><span class="ic">🔄</span>Sync</button>'+
-    '<button class="btn" onclick="customCmd()"><span class="ic">⌘</span>Custom</button>'+
-    (isRoot?'<button class="btn danger" onclick="sendCmd(\'wipe\')"><span class="ic">💥</span>Wipe</button>':"")+
-    '<button class="btn ghost" onclick="doRevoke()"><span class="ic">🚫</span>'+(d.status==="revoked"?"Restore":"Revoke")+'</button>'+
-    (isRoot?'<button class="btn ghost" onclick="doDelete()"><span class="ic">🗑</span>Delete</button>':"")+
-    '<button class="btn ghost" onclick="openDev(cur)"><span class="ic">⟳</span>Reload</button>'+
-  '</div>';
-
-  h+='<div class="sect-t">Identity</div><div class="card">'+
-    kv("Model", (d.manufacturer||"")+" "+(d.model||""))+
-    kv("Device ID", d.device_id)+
-    kv("Android ID", d.android_id)+
-    kv("OS", (d.os_version?("Android "+d.os_version):"—")+(d.sdk?" (SDK "+d.sdk+")":""))+
-    kv("Build", d.build_number)+
-    kv("Security patch", d.security_patch)+
-    kv("App version", d.app_version)+
-    kv("Enrolled", fmtTs(d.enrolled_at))+
-    kv("Last seen", timeAgo(d.last_seen_at))+
-  '</div>';
-
-  h+='<div class="sect-t">Status</div><div class="card">'+
-    kv("Battery", batStr(d.battery_pct,d.charging))+
-    kv("Charging", d.charging?"yes":"no")+
-    '<div class="kv"><span class="k">Storage</span><span class="v">'+fmtSize(used)+" used / "+fmtSize(d.storage_total)+'</span></div>'+
-    '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
-  '</div>';
-
-  h+='<div class="sect-t">Compliance</div><div class="card">';
-  if(d.compliance&&d.compliance.length) h+=d.compliance.map(function(i){return '<span class="chip bad">'+esc(i)+"</span>";}).join("");
-  else h+='<span class="pill ok">all checks pass</span>';
-  h+='</div>';
-
-  h+='<div class="sect-t">Activity logs</div><div class="card" id="logsBox"><div class="spin">loading…</div></div>';
-
-  h+='<div class="sect-t">File manager</div><div class="card">'+
-    '<div class="row"><input id="fmPath" value="/sdcard" placeholder="/sdcard/Download"><button class="btn sm" style="flex:0 0 auto" onclick="browse()">Browse</button></div>'+
-    '<div id="fmBox" class="muted" style="margin-top:.5rem">enter a path and tap Browse — the device uploads the listing on next sync.</div></div>';
-
-  h+='<div class="sect-t">Push file / install APK</div><div class="card">'+
-    '<div class="row"><input id="pushDest" placeholder="/sdcard/Download/file.bin"><button class="btn sm" style="flex:0 0 auto" onclick="pickPush()">Push file</button></div>'+
-    '<div class="row" style="margin-top:.5rem"><input id="srcApkHost" readonly placeholder="select APK to install…"><button class="btn sm warn" style="flex:0 0 auto" onclick="pickApk()">Install APK</button></div>'+
-    '<input type="file" id="pushFile" style="display:none" onchange="doPush()">'+
-    '<input type="file" id="apkFile" accept=".apk" style="display:none" onchange="doInstallApk()">'+
-  '</div>';
-
-  h+='<div class="sect-t">Location</div><div class="card" id="locBox"><div class="spin">loading…</div></div>';
-
-  h+='<div class="sect-t">Installed apps <span class="muted" style="text-transform:none;letter-spacing:0">'+(d.apps||[]).length+'</span></div>';
-  h+='<div class="card" style="max-height:280px;overflow:auto">';
-  (d.apps||[]).forEach(function(a){
-    h+='<div class="kv"><span class="k" style="color:var(--txt)">'+esc(a.label||a.package)+'</span><span class="v mono" style="color:var(--dim)">'+esc(a.package)+'</span>'+
-       '<button class="icon-btn" style="margin-left:.5rem" onclick="uninstallApp(\''+esc(a.package)+'\')">🗑</button></div>';
-  });
-  if(!(d.apps||[]).length) h+='<div class="empty">no app inventory yet</div>';
-  h+='</div>';
-
-  h+='<div class="sect-t">Policy</div><div class="card">'+
-    '<div class="row"><input id="polPin" type="number" min="0" placeholder="min PIN length"><input id="polLock" type="number" min="0" placeholder="auto-lock (sec)"></div>'+
-    '<div class="row" style="margin-top:.5rem"><select id="polCam"><option value="">camera: unchanged</option><option value="true">disable camera</option><option value="false">allow camera</option></select><button class="btn sm" style="flex:0 0 auto" onclick="savePolicy()">Apply policy</button></div>';
-  if(d.policy) h+='<div class="muted" style="margin-top:.5rem">current: <span class="mono">'+esc(JSON.stringify(d.policy))+'</span></div>';
-  h+='</div>';
-
-  h+='<div class="sect-t">Geofence</div><div class="card">'+
-    '<div class="row"><input id="gfName" placeholder="zone name"><input id="gfLat" placeholder="lat"><input id="gfLng" placeholder="lng"><input id="gfRad" type="number" placeholder="radius m" value="500"></div>'+
-    '<div style="margin-top:.55rem"><button class="btn sm" onclick="saveGeofence()">Add geofence</button></div>'+
-    '<div id="gfList" style="margin-top:.5rem">'+
-      (d.geofences||[]).map(function(g){
-        return '<div class="kv"><span class="k" style="color:var(--txt)">'+esc(g.name)+'</span><span class="v mono" style="color:var(--dim)">'+g.lat+","+g.lng+" · "+g.radius_m+'m</span>'+
-        '<button class="icon-btn" style="margin-left:.5rem" onclick="delGeofence('+g.id+')">✕</button></div>';
-      }).join("")+
-    '</div></div>';
-
-  h+='<div class="sect-t">Pending commands</div><div class="card">';
-  (d.commands||[]).forEach(function(c){ h+='<div class="kv"><span class="k" style="color:var(--txt)">'+esc(c.cmd)+'</span><span class="v muted">'+fmtTs(c.created_at)+(c.param?" · "+esc(c.param.slice(0,40)):"")+'</span></div>'; });
-  if(!(d.commands||[]).length) h+='<div class="empty">no queued commands</div>';
-  h+='</div>';
-
-  h+='<div class="sect-t">Device audit</div><div class="card tblwrap"><table><tr><th>When</th><th>Actor</th><th>Action</th><th>Result</th></tr>';
-  (d.audit||[]).forEach(function(a){ h+="<tr><td>"+fmtTs(a.ts)+"</td><td>"+esc(a.actor)+"</td><td>"+esc(a.action)+(a.reason?' <span class="muted">('+esc(a.reason)+")</span>":"")+"</td><td>"+esc(a.result||"—")+"</td></tr>"; });
-  if(!(d.audit||[]).length) h+='<tr><td colspan="4" class="empty">no actions yet</td></tr>';
-  h+='</table></div>';
-
-  document.getElementById("devBody").innerHTML=h;
-  loadLogs(); loadLocs();
+function fileListContent(){
+  const list = el("fileList"); if(!list) return;
+  let items = currentListing || [];
+  if(fileSortMode==="size") items = items.slice().sort((a,b)=>(b.size||0)-(a.size||0));
+  else if(fileSortMode==="type") items = items.slice().sort((a,b)=>String(a.type).localeCompare(String(b.type)));
+  else items = items.slice().sort((a,b)=>{ const ad=a.type==="dir"?0:1, bd=b.type==="dir"?0:1; return ad-bd || String(a.name||"").localeCompare(String(b.name||"")); });
+  if(!items.length){ list.innerHTML = '<div class="dim" style="padding:24px;text-align:center">📂 Empty folder — or waiting for the device to answer. Tap ↻.</div>'; return; }
+  list.innerHTML = items.map(f=>{
+    const isDir = f.type==="dir" || f.isDir;
+    const full = f.path || (filePath.replace(/\/+$/,"")+"/"+f.name);
+    return '<div class="frow" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd);width:100%">'
+      + '<span style="font-size:16px">'+(isDir?'📁':'<span style="opacity:.85">'+iconFor(f.name)+'</span>')+'</span>'
+      + '<span class="nm" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="'+(isDir?"fileOpen('"+escJS(String(f.name))+"')":"fileDownload('"+escJS(full)+"')")+'">'+esc(String(f.name||f.path||"?"))+'</span>'
+      + '<span class="meta" style="color:var(--mut);font-size:12px">'+(isDir?"":(f.size!=null?fmtSize(f.size):""))+'</span>'
+      + (isDir?'':'<button class="btn sm" onclick="fileDownload(\''+escJS(full)+'\')">⬇</button>')
+      + '</div>';
+  }).join('');
 }
-function kv(k,v){ return '<div class="kv"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v==null||v===""?"—":v)+'</span></div>'; }
-
-/* ---------- device actions ---------- */
-async function sendCmd(cmd, extra){
-  var reason=null;
-  if(cmd==="lock"||cmd==="wipe"){ reason=prompt("Reason (optional):"); if(reason===null) return; }
-  if(cmd==="wipe" && !confirm("FULL WIPE this device? This is destructive.")) return;
+function iconFor(name){
+  const n = String(name||"").toLowerCase();
+  if(n.endsWith(".apk")) return "📦";
+  if(/\.(jpe?g|png|gif|webp|bmp)$/.test(n)) return "🖼";
+  if(/\.(mp4|mkv|avi|mov|3gp)$/.test(n)) return "🎬";
+  if(/\.(mp3|wav|m4a|ogg)$/.test(n)) return "🎵";
+  if(/\.(txt|log|md|ini)$/.test(n)) return "📄";
+  if(n.endsWith(".pdf")) return "📕";
+  if(/\.(zip|rar|7z|tar|gz)$/.test(n)) return "🗜";
+  if(/\.(doc|docx)$/.test(n)) return "📘";
+  if(/\.(xls|xlsx)$/.test(n)) return "📗";
+  if(/\.(ppt|pptx)$/.test(n)) return "📙";
+  if(/\.(json|xml|html|js|kt|py|java|c)$/.test(n)) return "👾";
+  return "📄";
+}
+function escJS(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
+function fileOpen(name){ filePath = filePath.replace(/\/+$/,"")+"/"+name; loadDeviceFilesView(); }
+async function fileDownload(path){
+  if(!path){ flash("Missing path", true); return; }
+  flash("Requesting file…");
   try{
-    await api("/admin/devices/"+encodeURIComponent(cur)+"/"+cmd,{method:"POST",body:JSON.stringify(extra||{reason:reason||undefined})});
-    toast(cmd+" queued"); openDev(cur);
-  }catch(e){}
+    const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path), {headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = String(path).split("/").pop(); a.click();
+    URL.revokeObjectURL(a.href);
+    flash("Downloaded from device");
+  }catch(e){ flash("Download: "+e.message, true); }
 }
-async function customCmd(){
-  var c=prompt("Command (lock / wipe / beeper / sync / restrict_apps / kiosk):"); if(!c) return;
-  var p=prompt("Parameter (optional):")||"";
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/command",{method:"POST",body:JSON.stringify({cmd:c,param:p})}); toast(c+" queued"); openDev(cur); }catch(e){}
+async function filePush(){
+  const p = prompt("Destination folder on device:", filePath); if(p==null) return;
+  const inp = document.createElement("input"); inp.type="file";
+  inp.onchange = async function(){
+    const f = inp.files[0]; if(!f) return;
+    const fd = new FormData(); fd.append("path", p.replace(/\/+$/,"")+"/"+f.name); fd.append("content", f);
+    flash("Uploading…");
+    try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files/push", {method:"POST", body: fd}); flash("Pushed — device accepts on next check-in."); fileBrowse(); }
+    catch(e){ flash("Push failed: "+e.message, true); }
+  };
+  inp.click();
 }
-async function doRevoke(){
-  var d=curDetail, act=d.status==="revoked"?"restore":"revoke";
-  if(!confirm(act.toUpperCase()+" "+devName(d)+"?")) return;
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/"+act,{method:"POST"}); toast(act+"d"); boot(); openDev(cur); }catch(e){}
+async function fileInstall(){
+  const inp = document.createElement("input"); inp.type="file"; inp.accept=".apk,application/vnd.android.package-archive";
+  inp.onchange = async function(){
+    const apk = inp.files[0]; if(!apk) return;
+    const fd = new FormData(); fd.append("content", apk);
+    flash("Uploading APK…");
+    try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/install", {method:"POST", body: fd}); flash("APK sent — install prompt appears on device."); }
+    catch(e){ flash("Install failed: "+e.message, true); }
+  };
+  inp.click();
 }
-async function doDelete(){
-  if(!confirm("DELETE this device and ALL its data?")) return;
-  try{ await api("/admin/devices/"+encodeURIComponent(cur),{method:"DELETE"}); toast("deleted"); closeDev(); boot(); }catch(e){}
+function flash(msg, isErr){
+  const m = el("dMsg"); if(!m) return;
+  m.className = isErr?"errmsg":"okmsg";
+  m.textContent = msg;
+  setTimeout(()=>{m.className="hidden"}, 6000);
 }
-
-/* ---------- logs ---------- */
-async function loadLogs(){
-  try{
-    var d=await api("/admin/devices/"+encodeURIComponent(cur)+"/logs");
-    var box=document.getElementById("logsBox"); if(!box) return;
-    if(!d.logs.length){ box.innerHTML='<div class="empty">no logs uploaded yet</div>'; return; }
-    d.logs.sort(function(a,b){return (b.log_date>a.log_date)?1:-1;});
-    box.innerHTML=d.logs.map(function(l){
-      return '<div class="logitem" onclick="viewLog(\''+esc(l.log_date)+'\')">🗒 <span class="mono">'+esc(l.log_date)+'</span><span class="sz">'+fmtSize(l.size)+'</span></div>';
-    }).join("");
-    viewLog(d.logs[0].log_date);
-  }catch(e){ var b=document.getElementById("logsBox"); if(b) b.innerHTML='<div class="empty">unavailable</div>'; }
+/* ================= APPS ================= */
+async function loadDeviceAppsFromServer(){
+  el("dBody").innerHTML = '<div class="dim" style="padding:20px;text-align:center">Loading…</div>';
+  try{ const d = await api("/admin/devices/"+encodeURIComponent(cur)+"/detail"); loadDeviceAppsView(d); }
+  catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
-async function viewLog(dt){
-  var box=document.getElementById("logsBox"); if(!box) return;
-  var old=box.querySelector("pre"); if(old) old.remove();
-  var p=document.createElement("pre"); p.className="logbox"; p.style.marginTop=".6rem"; p.textContent="loading…";
-  box.appendChild(p);
-  try{
-    var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(dt)+"/content",{headers:{"Authorization":"Bearer "+token}});
-    p.textContent = r.ok ? (await r.text()) : ("HTTP "+r.status);
-    p.scrollTop=p.scrollHeight;
-  }catch(e){ p.textContent="failed to load"; }
+async function loadDeviceAppsView(d){
+  el("dBody").innerHTML = '<div style="margin-bottom:12px" class="bar">'
+    + '<button class="btn sm" onclick="refreshApps()">↻ Refresh apps</button>'
+    + '<button class="btn sm green" onclick="fileInstall()">📦 Push & install APK…</button></div>'
+    + '<div id="appsList"></div>';
+  const apps = d.apps || [];
+  el("appsList").innerHTML = apps.length
+    ? '<div class="card"><table><thead><tr><th>App</th><th>Package</th><th></th></tr></thead><tbody>'
+      + apps.map(a=>'<tr><td>'+esc(a.label||"—")+'</td><td class="dim mono">'+esc(a.package)+'</td>'
+        + '<td style="text-align:right"><button class="btn sm red" onclick="uninstallApp(\''+esc(a.package)+'\',\''+esc(a.label||a.package)+'\')">🗑 Uninstall</button></td></tr>').join('')
+      + '</tbody></table></div>'
+    : '<div class="dim">No apps reported yet.</div>';
 }
-
-/* ---------- file manager ---------- */
-async function browse(){
-  locPath=document.getElementById("fmPath").value.trim()||"/sdcard";
-  var box=document.getElementById("fmBox");
-  box.innerHTML='<div class="spin">requesting listing…</div>';
-  try{
-    await api("/admin/devices/"+encodeURIComponent(cur)+"/files?path="+encodeURIComponent(locPath));
-    box.innerHTML='<div class="muted">listing requested — device uploads it on next pulse. <a href="javascript:showFiles()">check now</a></div>';
-  }catch(e){ box.innerHTML='<div class="empty">request failed</div>'; }
+async function refreshApps(){
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/command", {method:"POST", body: JSON.stringify({cmd:"apps"})}); flash("Asking device to resend its app list…"); }
+  catch(e){ flash(e.message, true); }
 }
-async function showFiles(){
-  var box=document.getElementById("fmBox");
-  try{
-    var r=await fetch("/admin/devices/"+encodeURIComponent(cur)+"/files/content?path="+encodeURIComponent(locPath),{headers:{"Authorization":"Bearer "+token}});
-    if(!r.ok){ box.innerHTML='<div class="muted">not received yet — wait a pulse cycle and <a href="javascript:showFiles()">retry</a></div>'; return; }
-    var lines=(await r.text()).split("\n").filter(function(x){return x.trim();});
-    var h='<div style="margin-top:.4rem">';
-    lines.slice(0,300).forEach(function(line){
-      var isDir=/^d|\[d\]|\/$/.test(line);
-      var name=line.replace(/^[d\-rwx\.]+\s+/,"").split(/\s{2,}/).pop()||line;
-      h+='<div class="logitem" style="padding:.4rem .6rem">'+(isDir?"📁":"📄")+' <span class="mono" style="font-size:.74rem">'+esc(name)+'</span>'+
-         (isDir?"":'<button class="icon-btn" style="margin-left:auto" title="Download" onclick="dlFile(\''+esc(locPath.replace(/\/$/,"")+"/"+name.replace(/'/g,"\\'"))+'\')">⬇</button>')+'</div>';
-    });
-    box.innerHTML=h+"</div>";
-  }catch(e){ box.innerHTML='<div class="empty">failed to load</div>'; }
-}
-function dlFile(path){
-  var a=document.createElement("a");
-  a.href="/admin/devices/"+encodeURIComponent(cur)+"/files/download?path="+encodeURIComponent(path);
-  fetch(a.href,{headers:{"Authorization":"Bearer "+token}}).then(function(r){
-    if(!r.ok){ toast("file not pulled yet — queue a raw pull first or wait", true); return; }
-    return r.blob().then(function(b){ var u=URL.createObjectURL(b); a.href=u; a.download=path.split("/").pop()||"file"; a.click(); setTimeout(function(){URL.revokeObjectURL(u);},4000); });
-  });
-}
-function pickPush(){ document.getElementById("pushFile").click(); }
-async function doPush(){
-  var f=document.getElementById("pushFile").files[0]; if(!f) return;
-  var dest=document.getElementById("pushDest").value.trim()||("/sdcard/Download/"+f.name);
-  var fd=new FormData(); fd.append("path",dest); fd.append("content",f);
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/files/push",{method:"POST",body:fd,headers:{"Authorization":"Bearer "+token}}); toast("push queued → "+dest); }catch(e){}
-  document.getElementById("pushFile").value="";
-}
-function pickApk(){ document.getElementById("apkFile").click(); }
-async function doInstallApk(){
-  var f=document.getElementById("apkFile").files[0]; if(!f) return;
-  var fd=new FormData(); fd.append("content",f);
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/install",{method:"POST",body:fd,headers:{"Authorization":"Bearer "+token}}); toast("APK install queued: "+f.name); }catch(e){}
-  document.getElementById("apkFile").value="";
-}
-async function uninstallApp(pkg){
-  if(!confirm("Uninstall "+pkg+" on device?")) return;
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/uninstall",{method:"POST",body:JSON.stringify({package:pkg})}); toast("uninstall queued"); }catch(e){}
+async function uninstallApp(pkg, label){
+  if(!confirm("Uninstall "+label+" ("+pkg+")?")) return;
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/apps/uninstall", {method:"POST", body: JSON.stringify({package:pkg})}); flash("Uninstall requested — confirm on device."); }
+  catch(e){ flash("Uninstall failed: "+e.message, true); }
 }
 
-/* ---------- location ---------- */
-async function loadLocs(){
+/* ================= ACTIVITY / KEYSTROKES ================= */
+var logDates = [];
+var logDayCur = null;
+var logTimer = null;
+
+async function logLoadDates(){
+  el("dBody").innerHTML = '<div class="dim" style="padding:20px;text-align:center">Loading activity…</div>';
   try{
-    var d=await api("/admin/devices/"+encodeURIComponent(cur)+"/locations");
-    var box=document.getElementById("locBox"); if(!box) return;
-    if(!d.locations.length){ box.innerHTML='<div class="empty">no location history yet</div>'; return; }
-    var pts=d.locations, latest=pts[0];
-    var h=kv("Latest", latest.lat+", "+latest.lng)+kv("Updated", timeAgo(latest.ts))+kv("Points", pts.length);
-    // dot-plot
-    var lats=pts.map(function(p){return p.lat;}), lngs=pts.map(function(p){return p.lng;});
-    var mnLa=Math.min.apply(null,lats), mxLa=Math.max.apply(null,lats), mnLn=Math.min.apply(null,lngs), mxLn=Math.max.apply(null,lngs);
-    var W=680,H=340,pad=26, xr=(mxLn-mnLn)||0.001, yr=(mxLa-mnLa)||0.001;
-    h+='<svg class="loc" viewBox="0 0 '+W+" "+H+'" style="margin-top:.6rem">';
-    h+='<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="none"/>';
-    pts.slice().reverse().forEach(function(p,i){
-      var x=pad+(p.lng-mnLn)/xr*(W-2*pad), y=H-pad-(p.lat-mnLa)/yr*(H-2*pad);
-      var last=i===pts.length-1;
-      h+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+(last?7:3.5)+'" fill="'+(last?"#2dd4a7":"#5b8cff99")+'"/>';
-    });
-    h+="</svg>";
-    h+='<div class="muted" style="margin-top:.5rem"><a href="https://www.openstreetmap.org/?mlat='+latest.lat+"&mlon="+latest.lng+'#map=16/'+latest.lat+"/"+latest.lng+'" target="_blank">open in OpenStreetMap ↗</a></div>';
-    h+='<div class="tblwrap" style="margin-top:.5rem;max-height:200px;overflow:auto"><table><tr><th>When</th><th>Lat</th><th>Lng</th><th>Speed</th></tr>';
-    pts.slice(0,40).forEach(function(p){ h+="<tr><td>"+fmtTs(p.ts)+"</td><td>"+p.lat+"</td><td>"+p.lng+"</td><td>"+(p.speed||"—")+"</td></tr>"; });
-    box.innerHTML=h+"</table></div>";
-  }catch(e){ var b=document.getElementById("locBox"); if(b) b.innerHTML='<div class="empty">unavailable</div>'; }
+    const l = await api("/admin/devices/"+encodeURIComponent(cur)+"/logs");
+    var dates = [];
+    if(Array.isArray(l)) dates = l;
+    else if(Array.isArray(l.logs)) dates = l.logs.map(function(x){ return typeof x==="string" ? x : (x.log_date||x.date||x); });
+    else if(Array.isArray(l.dates)) dates = l.dates;
+    dates = dates.filter(function(x){ return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(x)); });
+    dates.sort().reverse();
+    logDates = dates;
+    if(!dates.length){
+      el("dBody").innerHTML = '<div class="card" style="text-align:center;padding:26px"><div style="font-size:34px;margin-bottom:10px">📭</div><b>No activity captured yet</b><div class="dim" style="margin-top:6px">The daily keystroke/activity log hasn\'t uploaded.<br>On the phone: open the Work Monitor app and turn <b>Accessibility → ON</b>, then type anything — it lands here within a minute.</div></div>';
+      return;
+    }
+    if(!logDayCur) logDayCur = dates[0];
+    el("dBody").innerHTML = '<div class="card"><h3 style="display:flex;align-items:center;gap:6px;margin-bottom:8px">⌨ Live activity' + (logDayCur===logDates[0]?'<span class="live" style="margin-left:auto">● LIVE</span>':'') + '</h3>' + logDatesEl() + '</div><div id="logDay" style="margin-top:10px"></div>';
+    logLoad();
+  }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
-/* ---------- policy / geofence ---------- */
-async function savePolicy(){
-  var pol={};
-  var pin=document.getElementById("polPin").value, lk=document.getElementById("polLock").value, cam=document.getElementById("polCam").value;
-  if(pin!=="") pol.password_min_length=parseInt(pin,10);
-  if(lk!=="") pol.max_time_to_lock=parseInt(lk,10)*1000;
-  if(cam!=="") pol.camera_disabled=(cam==="true");
-  if(!Object.keys(pol).length){ toast("nothing to apply", true); return; }
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/policy",{method:"POST",body:JSON.stringify({policy:pol})}); toast("policy saved"); openDev(cur); }catch(e){}
-}
-async function saveGeofence(){
-  var b={name:document.getElementById("gfName").value||"zone",
-         lat:parseFloat(document.getElementById("gfLat").value),
-         lng:parseFloat(document.getElementById("gfLng").value),
-         radius_m:parseInt(document.getElementById("gfRad").value||"500",10)};
-  if(isNaN(b.lat)||isNaN(b.lng)){ toast("lat/lng required", true); return; }
-  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/geofence",{method:"POST",body:JSON.stringify(b)}); toast("geofence added"); openDev(cur); }catch(e){}
-}
-async function delGeofence(id){
-  try{ await api("/admin/geofence/"+id,{method:"DELETE"}); toast("removed"); openDev(cur); }catch(e){}
+function logLoad(){
+  const box = el("logDay"); if(!box) return;
+  box.innerHTML = '<div class="dim" style="padding:14px">Loading…</div>';
+  if(logTimer){ clearInterval(logTimer); logTimer = null; }
+  const doLoad = async function(){
+    try{
+      const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(logDayCur)+"/content", {headers:{"Authorization":"Bearer "+token}});
+      if(!r.ok) return;
+      const txt = await r.text();
+      const lines = txt.split(/\r?\n/).filter(Boolean);
+      // newest first, cap at 300 lines for rendering speed
+      const show = lines.slice(-300).reverse();
+      box.innerHTML = ''
+
+        + '<div class="card" style="padding:0;overflow:hidden">'
+        +   '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd)"><b>📄 '+esc(logDayCur)+'</b><button class="btn sm ghost" onclick="logDownloadDay()">⬇ Save</button></div>'
+        +   '<div style="height:46vh;overflow-y:auto"><pre style="padding:10px 12px;font-size:12px;line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word">'+show.map(function(ln){ return kl(ln); }).join("\n")+'</pre></div>'
+        + '</div>';
+    }catch(e){ box.innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
+  };
+  doLoad();
+  // live-refresh while viewing the newest date
+  logTimer = setInterval(function(){
+    if(logDayCur === logDates[0]) doLoad();
+  }, 4000);
 }
 
-/* ---------- settings / audit ---------- */
-var setDefs=[["work_start","Work start (HH:MM)"],["work_end","Work end (HH:MM)"],["work_active","Work-hours gating (0/1)"],["location_interval_s","Location interval (s)"],["timezone","Timezone"]];
-async function loadSettings(){
+function logDaySelect(dt){
+  logDayCur = dt;
+  logLoadDates(/* keep date list rendered */);
+}
+
+function logDatesEl(){
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap">' + logDates.map(function(dt){
+    return '<button class="btn sm '+(dt===logDayCur?"":"ghost")+'" onclick="logDaySelect(\''+String(dt).replace(/[^0-9-]/g,"")+'\')">📅 '+esc(String(dt))+'</button>';
+  }).join('') + '</div>';
+}
+
+function kl(line){
+  // colourise: pulse/focus lines, keystroke lines
+  if(line.includes("PULSE")) return '<span style="color:var(--dim)">'+esc(line)+'</span>';
+  if(line.includes("[FOCUS]")) return '<span style="color:#ffb84d">'+esc(line)+'</span>';
+  if(/\] \S+ :: /.test(line)) return '<span style="color:#3ddc97">'+esc(line)+'</span>';
+  return esc(line);
+}
+
+async function logDownloadDay(){
+  const r = await fetch("/admin/devices/"+encodeURIComponent(cur)+"/logs/"+encodeURIComponent(logDayCur)+"/content", {headers:{"Authorization":"Bearer "+token}});
+  if(!r.ok) return;
+  const blob = await r.blob();
+  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download = cur.slice(0,8)+"-"+logDayCur+".txt"; a.click();
+}
+
+async function loadDeviceLogsTab(d){ // d optional
+  logDayCur = null;
+  logLoadDates();
+}
+
+/* ================= LOCATION ================= */
+async function loadDeviceMapTab(){
+  el("dBody").innerHTML = '<div class="card"><h3>Location</h3><div id="locBox" class="dim">Loading…</div></div>'
+    + '<div><button class="btn" onclick="forceLocate()">📍 Locate now</button></div>';
   try{
-    var s=await api("/admin/settings");
-    document.getElementById("setBox").innerHTML=setDefs.map(function(df){
-      return '<div class="kv"><span class="k">'+df[1]+'</span><input style="max-width:180px;padding:.35rem .55rem;font-size:.84rem" id="set_'+df[0]+'" value="'+esc(s[df[0]]||"")+'"></div>';
-    }).join("");
-  }catch(e){ document.getElementById("setBox").innerHTML='<div class="empty">root only / unavailable</div>'; }
+    const l = await api("/admin/devices/"+encodeURIComponent(cur)+"/locations");
+    const pts = l.locations || l;
+    if(pts.length){
+      const last = pts[pts.length-1];
+      el("locBox").innerHTML = '<div class="dim" style="margin-bottom:10px">Last fix: '+esc((last.ts||"").slice(0,19).replace("T"," "))+'</div>'
+        + '<iframe style="width:100%;height:320px;border:none;border-radius:10px" src="https://www.openstreetmap.org/export/embed.html?bbox='+(last.lng-0.004)+'%2C'+(last.lat-0.002)+'%2C'+(last.lng+0.004)+'%2C'+(last.lat+0.002)+'&amp;layer=mapnik&amp;marker='+last.lat+'%2C'+last.lng+'"></iframe>'
+        + '<div class="dim" style="margin-top:8px" class="mono">'+last.lat+', '+last.lng+'</div>';
+    } else el("locBox").textContent = "No location fixes yet.";
+  }catch(e){ el("locBox").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
-async function saveSettings(){
-  var body={}; setDefs.forEach(function(df){ var el=document.getElementById("set_"+df[0]); if(el&&el.value!=="") body[df[0]]=el.value; });
-  try{ await api("/admin/settings",{method:"POST",body:JSON.stringify(body)}); toast("settings saved"); }catch(e){}
+async function forceLocate(){
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/command", {method:"POST", body: JSON.stringify({cmd:"sync"})}); flash("Location sync requested…"); }
+  catch(e){ flash(e.message, true); }
 }
-async function createAdmin(){
-  var u=document.getElementById("naU").value.trim(), p=document.getElementById("naP").value;
-  if(!u||!p){ toast("username + password required", true); return; }
+
+/* ================= DEVICE AUDIT ================= */
+async function loadDeviceAuditTab(){
   try{
-    await api("/admin/setup/admin",{method:"POST",body:JSON.stringify({username:u,password:p,role:document.getElementById("naRole").value,site_id:document.getElementById("naSite").value||null})});
-    toast("admin created"); document.getElementById("naU").value=""; document.getElementById("naP").value="";
-  }catch(e){}
+    const a = await api("/admin/audit?device_id="+encodeURIComponent(cur));
+    const items = a.items || a;
+    el("dBody").innerHTML = items && items.length ? '<div class="card"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Result</th><th>Reason</th></tr></thead><tbody>'
+      + items.map(x=>'<tr><td class="dim">'+esc((x.ts||"").slice(5,19).replace("T"," "))+'</td><td>'+esc(x.actor)+'</td><td>'+esc(x.action.replace("command:",""))+'</td><td>'+esc(x.result||"—")+'</td><td class="dim">'+esc(x.reason||"—")+'</td></tr>').join('')
+      + '</tbody></table></div>' : '<div class="card dim">No actions for this device yet.</div>';
+  }catch(e){ el("dBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
+
+/* ================= DEVICE ACTIONS ================= */
+async function sendAction(act, label, needsConfirm){
+  if(needsConfirm && !confirm(label+" on "+cur.slice(0,8)+"?")) return;
+  const m = el("dMsg");
+  m.className=""; m.textContent="Sending…";
+  try{ await api("/admin/devices/"+encodeURIComponent(cur)+"/"+act, {method:"POST", body:"{}"}); flash(label+" sent — device reacts on next check-in."); }
+  catch(e){ flash(label+": "+(e&&e.message?e.message:JSON.stringify(e)), true); }
+}
+function confirmWipe(){
+  if(!confirm("⚠️ WIPE this device — factory reset, ALL data erased?")) return;
+  if(!confirm("Are you absolutely sure? This cannot be undone.")) return;
+  sendAction("wipe","Wipe");
+}
+
+/* ================= GLOBAL AUDIT ================= */
 async function loadAudit(){
+  el("audBody").innerHTML = '<div class="dim" style="padding:14px">Loading…</div>';
   try{
-    var d=await api("/admin/audit");
-    var box=document.getElementById("auditBox"); if(!box) return;
-    if(!d.audit.length){ box.innerHTML='<div class="empty">no audit entries</div>'; return; }
-    var h='<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Result</th><th>Reason</th></tr>';
-    d.audit.forEach(function(a){
-      h+="<tr><td>"+fmtTs(a.ts)+"</td><td>"+esc(a.actor)+"</td><td>"+esc(a.action)+'</td><td class="mono">'+esc((a.target||"").slice(0,14))+"</td><td>"+
-        (a.result==="ok"?'<span class="pill ok">ok</span>':'<span class="pill warn">'+esc(a.result||"—")+"</span>")+"</td><td class='muted'>"+esc(a.reason||"")+"</td></tr>";
-    });
-    box.innerHTML=h+"</table>";
-  }catch(e){ var b=document.getElementById("auditBox"); if(b) b.innerHTML='<div class="empty">root only / unavailable</div>'; }
+    const a = await api("/admin/audit");
+    const items = a.items || a;
+    el("audBody").innerHTML = items && items.length ? '<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Device</th><th>Result</th><th>Reason</th></tr></thead><tbody>'
+      + items.map(x=>'<tr><td class="dim">'+esc((x.ts||"").slice(5,19).replace("T"," "))+'</td><td>'+esc(x.actor)+'</td><td>'+esc(x.action.replace("command:",""))+'</td><td class="dim mono">'+esc((x.device_id||"").slice(0,8))+'</td><td>'+esc(x.result||"—")+'</td><td class="dim">'+esc(x.reason||"—")+'</td></tr>').join('')
+      + '</tbody></table>' : '<div class="dim">No actions recorded yet.</div>';
+  }catch(e){ el("audBody").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
 }
 
-/* ---------- init ---------- */
-(function(){
-  if(token){ showApp(); boot(); }
-  fetch("/admin/devlogin").then(function(r){ if(r.ok) document.getElementById("devHint").style.display="block"; }).catch(function(){});
-})();
+/* ================= SETTINGS ================= */
+function optCard(big, title, sub, onclick){
+  return '<button class="opt" onclick="'+onclick+'"><span class="biig">'+big+'</span><span>'+title+'</span><span class="osub">'+sub+'</span></button>';
+}
+async function loadSettings(){
+  el("whForm").innerHTML = '<div class="dim">Loading…</div>';
+  try{
+    const s = await api("/admin/settings");
+    const wh = s.work_hours || {};
+    const active = wh.active || String(s.work_active||"").trim()==="1";
+    el("whForm").innerHTML = '<div class="optgrid">'
+      + '<button class="opt '+(active?"on":"")+'" onclick="toggleSetting(\'work_active\','+(active?0:1)+')"><span class="biig">🕘</span><span>Work hours gating</span><span class="osub">'+((active?"On — location only in work hours":"Off — always record location"))+'</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: automatic install of approved APKs\')"><span class="biig">📦</span><span>Silent install</span><span class="osub">Coming soon</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: kiosk lock a device\')"><span class="biig">🔐</span><span>Kiosk mode</span><span class="osub">Coming soon</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: geofence alerts\')"><span class="biig">📍</span><span>Geofence alerts</span><span class="osub">Coming soon</span></button>'
+      + '<button class="opt" onclick="flash(\'Coming soon: require a password on the device\')"><span class="biig">🔑</span><span>Password policy</span><span class="osub">Coming soon</span></button>'
+      + '</div>';
+  }catch(e){ el("whForm").innerHTML = '<div class="errmsg">'+esc(e.message)+'</div>'; }
+}
+async function toggleSetting(k,v){
+  try{ await api("/admin/settings", {method:"POST", body: JSON.stringify({[k]: String(v)})}); loadSettings(); }
+  catch(e){ flash(e.message, true); }
+}
+
+/* ================= HELPERS ================= */
+function fmtSize(b){
+  if(b==null) return ""; if(b<1024) return b+"B";
+  const u=["KB","MB","GB","TB"]; let i=-1; do{ b/=1024; i++; }while(b>=1024 && i<u.length-1);
+  return b.toFixed(1)+u[i];
+}
+init();
 </script>
-</body>
-</html>
+</body></html>

@@ -360,14 +360,6 @@ def admin_ui():
         return HTMLResponse(idx.read_text(encoding="utf-8"))
     return HTMLResponse("<h3>Admin UI not deployed (missing static/index.html).</h3>")
 
-@app.get("/admin2", response_class=HTMLResponse)
-def admin_ui_v2_preview():
-    """Preview of the redesigned panel (index-v2.html). Original /admin untouched."""
-    idx = BASE_DIR / "static" / "index-v2.html"
-    if idx.exists():
-        return HTMLResponse(idx.read_text(encoding="utf-8"))
-    return HTMLResponse("<h3>v2 preview not deployed (missing static/index-v2.html).</h3>")
-
 
 @app.get("/admin/health")
 def health():
@@ -679,11 +671,37 @@ def set_geofence(device_id: str, body: dict = Body(...), admin: dict = Depends(g
     return {"ok": True}
 
 @app.get("/admin/devices/{device_id}/files")
-def device_files(device_id: str, path: str = "/sdcard", admin: dict = Depends(get_admin)):
-    """Request the device to list a directory. Returns immediately; results arrive via upload."""
+def device_files(device_id: str, path: str = "/sdcard", force: bool = False, admin: dict = Depends(get_admin)):
+    """Get a directory listing. Returns the CURRENT cached listing instantly, and
+    (re)requests the device to refresh it. `force=1` always sends the browse command,
+    otherwise we only refresh if the cache is older than 5 minutes."""
+    import json as _json
     with db() as conn:
-        _issue_command(conn, device_id, "browse", path, admin["username"], reason="file_manager")
-    return {"ok": True, "requested": path}
+        row = conn.execute("SELECT content,fetched_at FROM log_files WHERE device_id=? AND log_date=?",
+                           (device_id, f"files:{path}")).fetchone()
+    cached_entries = None
+    cached_at = row["fetched_at"] if row else None
+    if row and row["content"]:
+        try:
+            p = _json.loads(row["content"])
+            cached_entries = p if isinstance(p, list) else (p.get("entries") if isinstance(p, dict) else None)
+        except Exception:
+            cached_entries = None
+    now = datetime.utcnow()
+    stale = True
+    if cached_at:
+        try:
+            stale = (now - datetime.fromisoformat(cached_at)).total_seconds() > 300
+        except Exception:
+            stale = True
+    if force or stale or not cached_entries:
+        with db() as conn:
+            _issue_command(conn, device_id, "browse", path, admin["username"], reason="file_manager")
+        requested = True
+    else:
+        requested = False
+    return {"ok": True, "path": path, "requested": requested,
+            "entries": cached_entries or [], "updated": cached_at or ""}
 
 @app.post("/device/files/upload")
 def upload_files(device_id: str = Form(...), path: str = Form(...), content: UploadFile = File(...)):
@@ -691,10 +709,11 @@ def upload_files(device_id: str = Form(...), path: str = Form(...), content: Upl
     raw = content.file.read()
     with db() as conn:
         conn.execute(
-            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content) "
-            "VALUES(?,?,?,?,?,?) ON CONFLICT(device_id,log_date) DO UPDATE SET "
-            "checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path",
-            (device_id, f"files:{path}", "/files", hashlib.sha256(raw).hexdigest(), len(raw), raw.decode("utf-8", errors="replace"))
+            "INSERT INTO log_files(device_id,log_date,stored_path,checksum,size,content,fetched_at) "
+            "VALUES(?,?,?,?,?,?,?) ON CONFLICT(device_id,log_date) DO UPDATE SET "
+            "checksum=EXCLUDED.checksum,size=EXCLUDED.size,content=EXCLUDED.content,stored_path=EXCLUDED.stored_path," +
+            "fetched_at=EXCLUDED.fetched_at",
+            (device_id, f"files:{path}", "/files", hashlib.sha256(raw).hexdigest(), len(raw), raw.decode("utf-8", errors="replace"), datetime.utcnow().isoformat())
         )
     return {"ok": True, "size": len(raw)}
 
@@ -788,14 +807,34 @@ def admin_uninstall_app(device_id: str, body: dict = Body(...), admin: dict = De
 
 
 @app.get("/admin/devices/{device_id}/files/content")
-def device_files_content(device_id: str, path: str = "/sdcard", admin: dict = Depends(get_admin)):
-    """Get the file listing for a device+path."""
+def device_files_content(device_id: str, path: str = "/sdcard", path_hint: str = "", admin: dict = Depends(get_admin)):
+    import json as _json
+    """Get the file listing for a device+path as structured JSON.
+    Returns entries in the NEW shape when available, else falls back to raw lines."""
     with db() as conn:
-        row = conn.execute("SELECT content FROM log_files WHERE device_id=? AND log_date=?",
+        row = conn.execute("SELECT content,size,fetched_at FROM log_files WHERE device_id=? AND log_date=?",
                            (device_id, f"files:{path}")).fetchone()
     if not row or not row["content"]:
-        raise HTTPException(404, "no file listing for this path")
-    return PlainTextResponse(row["content"])
+        return {"path": path, "updated": None, "entries": []}
+    txt = row["content"]
+    entries = []
+    updated = row["fetched_at"] or ""
+    try:
+        parsed = _json.loads(txt)
+        if isinstance(parsed, list):
+            entries = parsed
+        elif isinstance(parsed, dict) and isinstance(parsed.get("entries"), list):
+            entries = parsed["entries"]
+        elif isinstance(parsed, dict) and parsed.get("path") == path:
+            entries = parsed.get("entries", [])
+    except Exception:
+        # legacy: line-per-item text listing
+        for line in txt.splitlines():
+            line = line.strip().rstrip(",").strip()
+            if line.startswith("{") and line.endswith("}"):
+                try: entries.append(_json.loads(line))
+                except Exception: pass
+    return {"path": path, "updated": updated, "size": row["size"], "entries": entries}
 
 
 @app.delete("/admin/geofence/{gfid}")
