@@ -72,8 +72,14 @@ def init_db():
     from passlib.context import CryptContext
     bc = CryptContext(schemes=["bcrypt"])
     if os.environ.get("DATABASE_URL"):
-        # Postgres schema is created via /tmp/schema.sql (runner). Only seed here.
+        # Postgres schema is created via /tmp/schema.sql (runner). Only seed + light migrations here.
         with db() as conn:
+            for c in ("permissions TEXT",
+                      "android_id TEXT", "biometric_on INTEGER DEFAULT 0"):
+                try:
+                    conn.execute("ALTER TABLE devices ADD COLUMN IF NOT EXISTS " + c)
+                except Exception:
+                    pass
             n = conn.execute("SELECT COUNT(*) AS c FROM admins WHERE role='root'").fetchone()["c"]
             if n == 0:
                 pw = os.environ.get("ROOT_PASSWORD", "change-me-root")
@@ -259,6 +265,8 @@ class InventoryBody(BaseModel):
     rooted: Optional[int] = 0
     unknown_sources: Optional[int] = 0
     unlocked_boot: Optional[int] = 0
+    permissions: Optional[dict] = None
+    unlocked_boot: Optional[int] = 0
     apps: Optional[list] = None
 
 
@@ -332,12 +340,13 @@ def report_inventory(body: InventoryBody):
             UPDATE devices SET model=?, manufacturer=?, android_id=?, os_version=?,
               sdk=?, security_patch=?, build_number=?, battery_pct=COALESCE(?,battery_pct),
               charging=COALESCE(?,charging), storage_total=?, storage_free=?,
-              rooted=?, unknown_sources=?, unlocked_boot=?
+              rooted=?, unknown_sources=?, unlocked_boot=?, permissions=?
             WHERE device_id=?""",
             (body.model, body.manufacturer, body.android_id, body.os_version,
              body.sdk, body.security_patch, body.build_number, body.battery_pct,
              body.charging, body.storage_total, body.storage_free,
-             body.rooted, body.unknown_sources, body.unlocked_boot, body.device_id))
+             body.rooted, body.unknown_sources, body.unlocked_boot,
+             json.dumps(body.permissions) if body.permissions else None, body.device_id))
         if body.apps:
             conn.execute("DELETE FROM apps WHERE device_id=?", (body.device_id,))
             for a in body.apps[:500]:
@@ -693,7 +702,8 @@ def device_sync(device_id: str, body: dict = Body(default={}), admin: dict = Dep
 @app.post("/admin/devices/{device_id}/command")
 def device_command(device_id: str, body: dict = Body(...), admin: dict = Depends(get_admin)):
     cmd = body.get("cmd")
-    if cmd not in ("lock", "wipe", "beeper", "sync", "restrict_apps", "kiosk"):
+    if cmd not in ("lock", "wipe", "beeper", "sync", "restrict_apps", "kiosk",
+                   "req_perms", "browse", "download"):
         raise HTTPException(400, "unsupported command")
     if cmd == "wipe" and admin["role"] != "root":
         raise HTTPException(403, "root only")

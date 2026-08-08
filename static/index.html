@@ -461,7 +461,36 @@ function infoHtml(d){
     + row('Storage', stor)
     + row('Last seen', (d.last_seen_at||"").slice(0,19).replace("T"," "), 'dim')
     + '</table></div>'
-    + (fl.length ? '<div class="card"><h3>Flags</h3><div style="display:flex;gap:6px;flex-wrap:wrap">'+fl.map(f=>'<span class="pill" style="'+ (f[1]==='r'?'background:rgba(255,93,107,.12);color:#ff5d6b':'background:rgba(255,184,77,.1);color:#ffb84d') +'">⚑ '+f[0]+'</span>').join('')+'</div></div>' : '');
+    + (fl.length ? '<div class="card"><h3>Flags</h3><div style="display:flex;gap:6px;flex-wrap:wrap">'+fl.map(f=>'<span class="pill" style="'+ (f[1]==='r'?'background:rgba(255,93,107,.12);color:#ff5d6b':'background:rgba(255,184,77,.1);color:#ffb84d') +'">⚑ '+f[0]+'</span>').join('')+'</div></div>' : '')
+    + permsCard(d);
+}
+function permsCard(d){
+  const p = d.permissions || {};
+  const names = ["ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","ACCESS_BACKGROUND_LOCATION",
+                 "POST_NOTIFICATIONS","READ_EXTERNAL_STORAGE","WRITE_EXTERNAL_STORAGE","MANAGE_EXTERNAL_STORAGE"];
+  const labels = {ACCESS_FINE_LOCATION:"📍 Fine location",ACCESS_COARSE_LOCATION:"📍 Coarse location",
+    ACCESS_BACKGROUND_LOCATION:"🕐 Background location (all the time)",POST_NOTIFICATIONS:"🔔 Notifications",
+    READ_EXTERNAL_STORAGE:"📂 Read storage",WRITE_EXTERNAL_STORAGE:"📝 Write storage",
+    MANAGE_EXTERNAL_STORAGE:"🗄 All files access"};
+  if(!Object.keys(p).length) return '';
+  const rows = names.map(n=>{
+    const v = p[n]===1;
+    return '<tr><td>'+esc(labels[n]||n)+'</td><td style="text-align:right">'
+      + '<span class="pill" style="'+(v?'background:rgba(64,206,130,.15);color:#40ce82':'background:rgba(255,93,107,.12);color:#ff5d6b')+'">'+(v?'✓ granted':'✗ denied')+'</span></td></tr>';
+  }).join('');
+  return '<div class="card"><h3>🔐 Permissions <span class="dim" style="font-weight:400">(on-device)</span></h3>'
+    + '<table>' + rows
+    + (d.permissions && d.permissions.MANAGE_EXTERNAL_STORAGE===0 ? '<tr><td colspan="2" class="sm dim">Enable "All files access" for the file manager</td></tr>':'')
+    + '</table>'
+    + '<button class="btn sm" onclick="requestAllPerms()">🔘 Ask phone to grant all permissions</button>'
+    + '<div class="sm dim" style="margin-top:6px">After tapping, long-press/choose <b>"Allow all the time"</b> for background location.</div>'
+    + '</div>';
+}
+async function requestAllPerms(){
+  try{
+    await api("/admin/devices/"+encodeURIComponent(cur)+"/command", {method:"POST", body: JSON.stringify({cmd:"req_perms"})});
+    flash("Sent — the phone will open and prompt you to grant permissions");
+  }catch(e){ flash("req_perms: "+e.message, true); }
 }
 function row(k,v,cls){ return '<tr><td class="mut" style="width:38%">'+k+'</td><td class="'+(cls||'')+'">'+esc(v)+'</td></tr>'; }
 
